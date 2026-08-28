@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.local
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore
+
+# Ephemeral public-API research captures. Keep only the directory marker in Git.
+research/transloc/samples/*
+!research/transloc/samples/.gitkeep
+research/transloc/tmp/

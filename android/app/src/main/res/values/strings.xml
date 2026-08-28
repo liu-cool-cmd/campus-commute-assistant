@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Campus Commute Assistant</string>
+    <string name="title_activity_main">Campus Commute Assistant</string>
+    <string name="package_name">org.campuscommute.app</string>
+    <string name="custom_url_scheme">org.campuscommute.app</string>
+    <string name="widget_next_description">Next commute</string>
+    <string name="widget_today_description">Today’s commute plans</string>
+    <string name="widget_today_tomorrow_description">Today and tomorrow’s commute plans</string>
+    <string name="widget_week_description">Next 7 days of commute plans</string>
+</resources>

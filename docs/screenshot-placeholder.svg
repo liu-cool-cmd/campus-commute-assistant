@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="540" viewBox="0 0 1000 540" role="img" aria-labelledby="title desc">
+  <title id="title">Campus Commute Assistant screenshot placeholder</title>
+  <desc id="desc">A phone mockup showing a next class and commute recommendation.</desc>
+  <rect width="1000" height="540" rx="28" fill="#e7eee8"/>
+  <circle cx="170" cy="100" r="120" fill="#d5e8db"/>
+  <circle cx="850" cy="470" r="180" fill="#f0d2bc"/>
+  <rect x="355" y="32" width="290" height="476" rx="38" fill="#fbfaf4" stroke="#173c31" stroke-width="8"/>
+  <rect x="450" y="49" width="100" height="8" rx="4" fill="#b8c4bc"/>
+  <text x="385" y="105" fill="#68766e" font-family="Arial, sans-serif" font-size="13" font-weight="700">NEXT CLASS</text>
+  <text x="385" y="139" fill="#17251f" font-family="Georgia, serif" font-size="25" font-weight="700">Intro to Robotics</text>
+  <text x="385" y="165" fill="#68766e" font-family="Arial, sans-serif" font-size="14">CIEMAS 2240 · 10:05 AM</text>
+  <rect x="378" y="195" width="244" height="240" rx="22" fill="#123c31"/>
+  <text x="400" y="230" fill="#aac8b9" font-family="Arial, sans-serif" font-size="12" font-weight="700">RECOMMENDED</text>
+  <text x="400" y="263" fill="#ffffff" font-family="Georgia, serif" font-size="27" font-weight="700">Leave at 9:31</text>
+  <g fill="#c1d4ca" font-family="Arial, sans-serif" font-size="13">
+    <text x="400" y="305">Walk to stop</text><text x="554" y="305">5 min</text>
+    <text x="400" y="337">Bus C1</text><text x="554" y="337">9:38</text>
+    <text x="400" y="369">Walk to class</text><text x="554" y="369">6 min</text>
+  </g>
+  <rect x="378" y="404" width="244" height="31" rx="0 0 22 22" fill="#d97745"/>
+  <text x="500" y="425" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="12" font-weight="700">ARRIVE 13 MIN EARLY</text>
+  <text x="500" y="530" text-anchor="middle" fill="#54645c" font-family="Arial, sans-serif" font-size="14">Screenshot placeholder — replace with a device capture before release</text>
+</svg>

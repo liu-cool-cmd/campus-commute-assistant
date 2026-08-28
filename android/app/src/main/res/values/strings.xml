@@ -8,4 +8,5 @@
     <string name="widget_today_description">Today’s commute plans</string>
     <string name="widget_today_tomorrow_description">Today and tomorrow’s commute plans</string>
     <string name="widget_week_description">Next 7 days of commute plans</string>
+    <string name="widget_mini_description">Mini daily commute schedule</string>
 </resources>

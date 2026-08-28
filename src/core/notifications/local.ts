@@ -16,6 +16,7 @@ export async function scheduleCommuteNotification(
   classEvent: ClassEvent,
   recommendation: CommuteRecommendation,
   language: AppLanguage,
+  routeName = recommendation.route.shortName || recommendation.route.longName,
 ): Promise<boolean> {
   if (!Capacitor.isNativePlatform() || recommendation.leaveAt <= new Date()) return false;
 
@@ -30,7 +31,7 @@ export async function scheduleCommuteNotification(
     language,
     recommendation.departureTimeIsExact === false ? 'notificationTakeAround' : 'notificationTakeAt',
     {
-      route: recommendation.route.shortName || recommendation.route.longName,
+      route: routeName,
       time: formatTime(recommendation.departureTime, language),
     },
   )}${

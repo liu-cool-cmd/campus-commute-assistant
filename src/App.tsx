@@ -1,7 +1,9 @@
 import { Capacitor } from '@capacitor/core';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultCampus } from './campuses';
 import { ImportClasses } from './components/ImportClasses';
+import { LiveRouteOverlay } from './components/LiveRouteOverlay';
+import { LiveTripMap } from './components/LiveTripMap';
 import { LiveTransitMap } from './components/LiveTransitMap';
 import { RecommendationCard } from './components/RecommendationCard';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -13,13 +15,17 @@ import { getDownstreamStops } from './core/gtfs/selection';
 import { findBuilding } from './core/locations/geo';
 import { scheduleCommuteNotification } from './core/notifications/local';
 import { buildWeekPlans } from './core/planning/week';
+import { RealtimeSnapshotCache } from './core/realtime/realtimeCache';
+import { calculateLiveTripProgress, type LiveTripProgress } from './core/realtime/routeProgress';
 import { getCommuteRecommendations } from './core/routing/engine';
 import { loadClasses, loadSettings, saveClasses, saveSettings } from './core/storage/preferences';
-import type { ClassEvent, TransitSelection, UserSettings } from './core/types';
+import type { ClassEvent, RealtimeSnapshot, TransitSelection, UserSettings } from './core/types';
 import { syncAndroidWidgets } from './core/widgets/android';
 import { localeFor, translate } from './i18n';
 
 const campus = defaultCampus;
+const routeName = (routeId: string, fallback: string) =>
+  campus.routeFamilies?.find((family) => family.routeIds.includes(routeId))?.name || fallback;
 const defaults: UserSettings = {
   campusId: campus.config.id,
   language: 'en',
@@ -46,7 +52,9 @@ const classTime = (date: Date, language: UserSettings['language']) =>
   new Intl.DateTimeFormat(localeFor(language), { hour: 'numeric', minute: '2-digit' }).format(date);
 
 export default function App() {
-  const [tab, setTab] = useState<'home' | 'week' | 'settings' | 'live-map'>('home');
+  const [tab, setTab] = useState<'home' | 'week' | 'settings' | 'live-trip-map' | 'official-map'>(
+    'home',
+  );
   const [settings, setSettings] = useState<UserSettings>(defaults);
   const [classes, setClasses] = useState<ClassEvent[]>([]);
   const [snapshot, setSnapshot] = useState<GtfsSnapshot>();
@@ -54,7 +62,14 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [gtfsError, setGtfsError] = useState('');
   const [notificationScheduled, setNotificationScheduled] = useState(false);
+  const [realtimeSnapshot, setRealtimeSnapshot] = useState<RealtimeSnapshot>();
   const [now, setNow] = useState(() => new Date());
+  const contentRef = useRef<HTMLElement>(null);
+  const realtimeCache = useMemo(() => new RealtimeSnapshotCache(campus.realtime), []);
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [tab]);
 
   const refreshGtfs = async (forceRefresh = false) => {
     setRefreshing(true);
@@ -80,7 +95,13 @@ export default function App() {
   useEffect(() => {
     void Promise.all([loadSettings(defaults), loadClasses()]).then(
       ([storedSettings, storedClasses]) => {
-        setSettings(storedSettings);
+        setSettings(
+          campus.migrateSettings?.(storedSettings) ?? {
+            ...storedSettings,
+            homeTransit:
+              campus.migrateHomeTransit?.(storedSettings.homeTransit) ?? storedSettings.homeTransit,
+          },
+        );
         setClasses(storedClasses);
         setHydrated(true);
       },
@@ -148,6 +169,17 @@ export default function App() {
         : undefined,
     [destinationStopId, settings.homeTransit?.originStopId, settings.homeTransit?.routeId],
   );
+  const transitSelections = useMemo(() => {
+    if (!transitSelection || !snapshot || !nextClass) return [];
+    return campus.resolveTransitSelections
+      ? campus.resolveTransitSelections(
+          transitSelection,
+          snapshot.feed,
+          nextClass.startTime,
+          settings.homeTransit?.routeFamilyId,
+        )
+      : [transitSelection];
+  }, [nextClass, settings.homeTransit?.routeFamilyId, snapshot, transitSelection]);
 
   useEffect(() => {
     if (!snapshot || !nextClass || !settings.transitSelection) return;
@@ -169,28 +201,30 @@ export default function App() {
   }, [nextClass, settings.transitSelection, snapshot]);
 
   const recommendations = useMemo(() => {
-    if (!nextClass || !snapshot || !transitSelection) return [];
-    const originStop = snapshot.feed.stops.find(
-      (stop) => stop.id === transitSelection.originStopId,
-    );
-    const destinationStop = snapshot.feed.stops.find(
-      (stop) => stop.id === transitSelection.destinationStopId,
-    );
-    if (!originStop || !destinationStop) return [];
-    return getCommuteRecommendations({
-      feed: snapshot.feed,
-      request: {
-        origin: settings.home ?? originStop,
-        destination: destinationBuilding ?? destinationStop,
-        arrivalDeadline: nextClass.startTime,
-        bufferMinutes: settings.defaultBufferMinutes,
-      },
-      transitSelection,
-      serviceTimezone: campus.config.timezone,
-      walkingSpeedMetersPerSecond: settings.walkingSpeedMetersPerSecond,
-      walkingCorrectionFactor: settings.walkingCorrectionFactor,
-    });
-  }, [destinationBuilding, nextClass, settings, snapshot, transitSelection]);
+    if (!nextClass || !snapshot) return [];
+    return transitSelections
+      .flatMap((selection) => {
+        const originStop = snapshot.feed.stops.find((stop) => stop.id === selection.originStopId);
+        const destinationStop = snapshot.feed.stops.find(
+          (stop) => stop.id === selection.destinationStopId,
+        );
+        if (!originStop || !destinationStop) return [];
+        return getCommuteRecommendations({
+          feed: snapshot.feed,
+          request: {
+            origin: settings.home ?? originStop,
+            destination: destinationBuilding ?? destinationStop,
+            arrivalDeadline: nextClass.startTime,
+            bufferMinutes: settings.defaultBufferMinutes,
+          },
+          transitSelection: selection,
+          serviceTimezone: campus.config.timezone,
+          walkingSpeedMetersPerSecond: settings.walkingSpeedMetersPerSecond,
+          walkingCorrectionFactor: settings.walkingCorrectionFactor,
+        });
+      })
+      .sort((left, right) => right.leaveAt.getTime() - left.leaveAt.getTime());
+  }, [destinationBuilding, nextClass, settings, snapshot, transitSelections]);
 
   const visibleRecommendations = useMemo(() => {
     const distinctDepartures = new Map<string, (typeof recommendations)[number]>();
@@ -208,6 +242,56 @@ export default function App() {
   }, [recommendations]);
   const recommended = visibleRecommendations[0];
   const alternatives = visibleRecommendations.slice(1, 4);
+  const recommendedRouteName = recommended
+    ? routeName(recommended.route.id, recommended.route.shortName || recommended.route.longName)
+    : '';
+
+  useEffect(() => {
+    if (!recommended || !campus.realtime.available) return;
+    let disposed = false;
+    const controller = new AbortController();
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      void realtimeCache
+        .refresh(controller.signal)
+        .then((value) => {
+          if (!disposed) setRealtimeSnapshot(value);
+        })
+        .catch(() => undefined);
+    };
+    const visibilityChanged = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 30_000);
+    document.addEventListener('visibilitychange', visibilityChanged);
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', visibilityChanged);
+    };
+  }, [realtimeCache, recommended]);
+
+  const liveTripProgress = useMemo<LiveTripProgress>(() => {
+    if (!recommended || !realtimeSnapshot) {
+      return {
+        status: 'unavailable',
+        reason: 'no-active-vehicle',
+        vehicleToBoardingPath: [],
+        boardingToArrivalPath: [],
+        passedPath: [],
+        displayStops: [],
+      };
+    }
+    return calculateLiveTripProgress({
+      snapshot: realtimeSnapshot,
+      routeId: recommended.route.id,
+      boardingStopId: recommended.originStop.id,
+      arrivalStopId: recommended.destinationStop.id,
+      now,
+    });
+  }, [now, realtimeSnapshot, recommended]);
 
   const weekPlans = useMemo(
     () =>
@@ -218,23 +302,27 @@ export default function App() {
         buildings: campus.buildings,
         serviceTimezone: campus.config.timezone,
         now,
+        resolveTransitSelections: campus.resolveTransitSelections,
       }),
     [classes, now, settings, snapshot],
   );
 
   useEffect(() => {
     if (!hydrated) return;
-    void syncAndroidWidgets(weekPlans, settings.language).catch(() => undefined);
+    void syncAndroidWidgets(weekPlans, settings.language, routeName).catch(() => undefined);
   }, [hydrated, settings.language, weekPlans]);
 
   useEffect(() => {
     setNotificationScheduled(false);
     if (nextClass && recommended) {
-      void scheduleCommuteNotification(nextClass, recommended, settings.language).then(
-        setNotificationScheduled,
-      );
+      void scheduleCommuteNotification(
+        nextClass,
+        recommended,
+        settings.language,
+        recommendedRouteName,
+      ).then(setNotificationScheduled);
     }
-  }, [nextClass, recommended, settings.language]);
+  }, [nextClass, recommended, recommendedRouteName, settings.language]);
 
   const importClasses = (events: ClassEvent[]) => {
     setClasses(events);
@@ -259,7 +347,21 @@ export default function App() {
     }
   };
 
-  if (tab === 'live-map' && campus.config.liveMapUrl) {
+  if (tab === 'live-trip-map' && recommended) {
+    return (
+      <LiveTripMap
+        language={settings.language}
+        routeName={recommendedRouteName}
+        progress={liveTripProgress}
+        home={settings.home}
+        destination={destinationBuilding}
+        onClose={() => setTab('home')}
+        onOpenOfficial={() => setTab('official-map')}
+      />
+    );
+  }
+
+  if (tab === 'official-map' && campus.config.liveMapUrl) {
     return (
       <LiveTransitMap
         url={campus.config.liveMapUrl}
@@ -286,7 +388,7 @@ export default function App() {
         </button>
       </header>
 
-      <main>
+      <main ref={contentRef}>
         {tab === 'home' ? (
           <>
             {!nextClass ? (
@@ -378,6 +480,13 @@ export default function App() {
                       language={settings.language}
                       classEvent={nextClass}
                       recommendation={recommended}
+                      routeName={recommendedRouteName}
+                    />
+                    <LiveRouteOverlay
+                      language={settings.language}
+                      routeName={recommendedRouteName}
+                      progress={liveTripProgress}
+                      onOpen={() => setTab('live-trip-map')}
                     />
                     {notificationScheduled && (
                       <p className="notification-note">
@@ -396,6 +505,10 @@ export default function App() {
                             key={`${alternative.leaveAt.toISOString()}-${alternative.trip.id}`}
                             classEvent={nextClass}
                             recommendation={alternative}
+                            routeName={routeName(
+                              alternative.route.id,
+                              alternative.route.shortName || alternative.route.longName,
+                            )}
                             compact
                           />
                         ))}
@@ -406,9 +519,9 @@ export default function App() {
                         <button
                           className="primary-button live-map-button"
                           type="button"
-                          onClick={() => setTab('live-map')}
+                          onClick={() => setTab('official-map')}
                         >
-                          {translate(settings.language, 'viewBusesLive')}
+                          {translate(settings.language, 'openFullTransloc')}
                         </button>
                       )}
                       <button className="text-button" onClick={() => setTab('settings')}>
@@ -424,6 +537,7 @@ export default function App() {
           <WeekPlan
             language={settings.language}
             plans={weekPlans}
+            routeName={routeName}
             onOpenSettings={() => setTab('settings')}
           />
         ) : (
@@ -434,6 +548,7 @@ export default function App() {
             gtfsUpdatedAt={snapshot?.fetchedAt}
             refreshing={refreshing}
             feed={snapshot?.feed}
+            routeFamilies={campus.routeFamilies}
             classes={classes}
             onSettings={setSettings}
             onImportClasses={importClasses}

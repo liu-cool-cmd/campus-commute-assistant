@@ -116,10 +116,38 @@ export interface GtfsFeed {
 
 export interface VehiclePosition extends Location {
   vehicleId: string;
+  name?: string;
   routeId?: string;
+  providerRouteId?: string;
   tripId?: string;
   bearing?: number;
+  groundSpeed?: number;
+  gpsAgeSeconds: number;
+  isOnRoute: boolean;
+  isDelayed?: boolean;
   recordedAt: Date;
+}
+
+export interface RealtimeRouteStop extends Stop {
+  order: number;
+  providerStopId?: string;
+}
+
+export interface RealtimeRoute {
+  routeId: string;
+  providerRouteId: string;
+  name: string;
+  color?: string;
+  isRunning?: boolean;
+  isLoop: boolean;
+  polyline: Coordinates[];
+  stops: RealtimeRouteStop[];
+}
+
+export interface RealtimeSnapshot {
+  receivedAt: Date;
+  routes: RealtimeRoute[];
+  vehicles: VehiclePosition[];
 }
 
 export interface ArrivalPrediction {
@@ -132,8 +160,16 @@ export interface ArrivalPrediction {
 
 export interface RealtimeProvider {
   readonly available: boolean;
+  getSnapshot(signal?: AbortSignal): Promise<RealtimeSnapshot>;
   getVehiclePositions(): Promise<VehiclePosition[]>;
   getArrivalPredictions(stopId: string): Promise<ArrivalPrediction[]>;
+}
+
+export interface CampusRouteFamily {
+  id: string;
+  name: string;
+  canonicalRouteId: string;
+  routeIds: string[];
 }
 
 export interface CommuteRequest {
@@ -200,6 +236,7 @@ export interface TransitSelectionDraft {
 
 export interface HomeTransitDraft {
   routeId?: string;
+  routeFamilyId?: string;
   originStopId?: string;
 }
 
@@ -222,6 +259,15 @@ export interface CampusAdapter {
   config: CampusConfig;
   buildings: CampusBuilding[];
   realtime: RealtimeProvider;
+  routeFamilies?: CampusRouteFamily[];
+  migrateSettings?(settings: UserSettings): UserSettings;
+  migrateHomeTransit?(selection?: HomeTransitDraft): HomeTransitDraft | undefined;
+  resolveTransitSelections?(
+    selection: TransitSelection,
+    feed: GtfsFeed,
+    commuteAt: Date,
+    routeFamilyId?: string,
+  ): TransitSelection[];
   supplementGtfs?(feed: GtfsFeed): GtfsFeed;
   migrateTransitSelection?(selection?: TransitSelectionDraft): TransitSelectionDraft | undefined;
 }

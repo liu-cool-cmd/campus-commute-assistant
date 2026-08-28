@@ -4,6 +4,7 @@ import { localeFor, translate } from '../i18n';
 interface WeekPlanProps {
   language: AppLanguage;
   plans: CommutePlan[];
+  routeName?(routeId: string, fallback: string): string;
   onOpenSettings(): void;
 }
 
@@ -30,7 +31,7 @@ function statusMessage(plan: CommutePlan, language: AppLanguage): string {
   }
 }
 
-export function WeekPlan({ language, plans, onOpenSettings }: WeekPlanProps) {
+export function WeekPlan({ language, plans, routeName, onOpenSettings }: WeekPlanProps) {
   const groups = new Map<string, CommutePlan[]>();
   for (const plan of plans) {
     const key = dayKey(plan.classEvent.startTime);
@@ -89,7 +90,11 @@ export function WeekPlan({ language, plans, onOpenSettings }: WeekPlanProps) {
                             </div>
                             <div className="week-route-line">
                               <span className="week-route-badge">
-                                {recommendation.route.shortName || recommendation.route.longName}
+                                {routeName?.(
+                                  recommendation.route.id,
+                                  recommendation.route.shortName || recommendation.route.longName,
+                                ) ??
+                                  (recommendation.route.shortName || recommendation.route.longName)}
                               </span>
                               <span>
                                 {translate(language, 'departAt', {

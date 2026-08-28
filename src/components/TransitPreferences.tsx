@@ -1,5 +1,11 @@
 import { getDownstreamStops, getRouteStops } from '../core/gtfs/selection';
-import type { AppLanguage, ClassEvent, GtfsFeed, HomeTransitDraft } from '../core/types';
+import type {
+  AppLanguage,
+  CampusRouteFamily,
+  ClassEvent,
+  GtfsFeed,
+  HomeTransitDraft,
+} from '../core/types';
 import { translate } from '../i18n';
 
 const routeLabel = (shortName: string, longName: string, id: string) =>
@@ -12,6 +18,7 @@ interface HomeTransitSettingsProps {
   language: AppLanguage;
   feed?: GtfsFeed;
   value?: HomeTransitDraft;
+  routeFamilies?: CampusRouteFamily[];
   onChange(value: HomeTransitDraft): void;
 }
 
@@ -19,6 +26,7 @@ export function HomeTransitSettings({
   language,
   feed,
   value = {},
+  routeFamilies = [],
   onChange,
 }: HomeTransitSettingsProps) {
   const routesWithTrips = new Set(feed?.trips.map((trip) => trip.routeId) ?? []);
@@ -28,6 +36,8 @@ export function HomeTransitSettings({
       .map((trip) => trip.routeId) ?? [],
   );
   const stops = feed ? getRouteStops(feed, value.routeId) : [];
+  const familyRouteIds = new Set(routeFamilies.flatMap((family) => family.routeIds));
+  const selectValue = value.routeFamilyId ? `family:${value.routeFamilyId}` : (value.routeId ?? '');
 
   return (
     <section className="settings-subsection">
@@ -39,20 +49,41 @@ export function HomeTransitSettings({
       <label>
         {translate(language, 'lineFromHome')}
         <select
-          value={value.routeId ?? ''}
+          value={selectValue}
           disabled={!feed}
-          onChange={(event) => onChange(event.target.value ? { routeId: event.target.value } : {})}
+          onChange={(event) => {
+            if (!event.target.value) return onChange({});
+            if (event.target.value.startsWith('family:')) {
+              const routeFamilyId = event.target.value.slice('family:'.length);
+              const family = routeFamilies.find((item) => item.id === routeFamilyId);
+              return onChange(
+                family ? { routeId: family.canonicalRouteId, routeFamilyId: family.id } : {},
+              );
+            }
+            onChange({ routeId: event.target.value });
+          }}
         >
           <option value="">{translate(language, 'selectLine')}</option>
-          {feed?.routes.map((route) => (
-            <option key={route.id} value={route.id} disabled={!routesWithTrips.has(route.id)}>
-              {routeLabel(route.shortName, route.longName, route.id)}
-              {!routesWithTrips.has(route.id) ? ` — ${translate(language, 'noTrips')}` : ''}
-              {routesWithOfficialSupplements.has(route.id)
-                ? ` — ${translate(language, 'officialTimetable')}`
-                : ''}
+          {routeFamilies.map((family) => (
+            <option
+              key={family.id}
+              value={`family:${family.id}`}
+              disabled={!family.routeIds.some((routeId) => routesWithTrips.has(routeId))}
+            >
+              {family.name}
             </option>
           ))}
+          {feed?.routes
+            .filter((route) => !familyRouteIds.has(route.id))
+            .map((route) => (
+              <option key={route.id} value={route.id} disabled={!routesWithTrips.has(route.id)}>
+                {routeLabel(route.shortName, route.longName, route.id)}
+                {!routesWithTrips.has(route.id) ? ` — ${translate(language, 'noTrips')}` : ''}
+                {routesWithOfficialSupplements.has(route.id)
+                  ? ` — ${translate(language, 'officialTimetable')}`
+                  : ''}
+              </option>
+            ))}
         </select>
       </label>
       <label>

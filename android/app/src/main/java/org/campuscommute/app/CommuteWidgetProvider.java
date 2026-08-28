@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.view.View;
 import android.widget.RemoteViews;
 import java.util.ArrayList;
@@ -21,7 +22,8 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         NEXT,
         TODAY,
         TODAY_TOMORROW,
-        WEEK
+        WEEK,
+        MINI
     }
 
     private static final String PREFERENCES_GROUP = "CapacitorStorage";
@@ -41,6 +43,14 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         R.id.widget_row_day_4,
         R.id.widget_row_day_5,
         R.id.widget_row_day_6
+    };
+    private static final int[] ROW_TIME_COLUMNS = {
+        R.id.widget_row_time_column_1,
+        R.id.widget_row_time_column_2,
+        R.id.widget_row_time_column_3,
+        R.id.widget_row_time_column_4,
+        R.id.widget_row_time_column_5,
+        R.id.widget_row_time_column_6
     };
     private static final int[] ROW_TIMES = {
         R.id.widget_row_time_1,
@@ -66,12 +76,30 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         R.id.widget_row_detail_5,
         R.id.widget_row_detail_6
     };
+    private static final int[] MINI_ROWS = {
+        R.id.widget_mini_row_1,
+        R.id.widget_mini_row_2,
+        R.id.widget_mini_row_3,
+        R.id.widget_mini_row_4,
+        R.id.widget_mini_row_5,
+        R.id.widget_mini_row_6
+    };
 
     protected abstract Mode getMode();
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] widgetIds) {
         for (int widgetId : widgetIds) updateWidget(context, manager, widgetId, getMode());
+    }
+
+    @Override
+    public void onAppWidgetOptionsChanged(
+        Context context,
+        AppWidgetManager manager,
+        int widgetId,
+        Bundle newOptions
+    ) {
+        updateWidget(context, manager, widgetId, getMode());
     }
 
     public static void refreshAll(Context context) {
@@ -85,6 +113,7 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
             Mode.TODAY_TOMORROW
         );
         refreshProvider(context, manager, WeekCommuteWidgetProvider.class, Mode.WEEK);
+        refreshProvider(context, manager, MiniCommuteWidgetProvider.class, Mode.MINI);
     }
 
     private static void refreshProvider(
@@ -105,9 +134,12 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
     ) {
         JSONObject snapshot = readSnapshot(context);
         List<JSONObject> entries = selectEntries(snapshot, mode);
+        WidgetSize size = readWidgetSize(manager, widgetId, mode);
         RemoteViews views = mode == Mode.NEXT
             ? renderNext(context, snapshot, entries)
-            : renderList(context, snapshot, entries, mode);
+            : mode == Mode.MINI
+            ? renderMini(context, snapshot, entries, size)
+            : renderList(context, snapshot, entries, mode, size);
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -118,6 +150,22 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         );
         views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
         manager.updateAppWidget(widgetId, views);
+    }
+
+    private static WidgetSize readWidgetSize(
+        AppWidgetManager manager,
+        int widgetId,
+        Mode mode
+    ) {
+        Bundle options = manager.getAppWidgetOptions(widgetId);
+        int defaultHeight = mode == Mode.TODAY || mode == Mode.MINI
+            ? 110
+            : mode == Mode.TODAY_TOMORROW
+            ? 180
+            : 250;
+        int width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
+        int height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, defaultHeight);
+        return new WidgetSize(Math.max(width, 40), Math.max(height, 70));
     }
 
     private static JSONObject readSnapshot(Context context) {
@@ -139,6 +187,7 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         JSONArray entries = snapshot.optJSONArray("entries");
         if (entries == null) return selected;
         long now = System.currentTimeMillis();
+        int lastMiniDay = -1;
         for (int index = 0; index < entries.length(); index++) {
             JSONObject entry = entries.optJSONObject(index);
             if (entry == null) continue;
@@ -147,9 +196,19 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
             int dayOffset = dayOffset(now, classStart);
             if (mode == Mode.TODAY && dayOffset != 0) continue;
             if (mode == Mode.TODAY_TOMORROW && (dayOffset < 0 || dayOffset > 1)) continue;
+            if (mode == Mode.MINI) {
+                if (dayOffset < 0 || dayOffset > 6 || dayOffset == lastMiniDay) continue;
+                lastMiniDay = dayOffset;
+            }
             selected.add(entry);
         }
-        int maximum = mode == Mode.NEXT ? 1 : mode == Mode.TODAY ? 2 : mode == Mode.TODAY_TOMORROW ? 4 : 6;
+        int maximum = mode == Mode.NEXT
+            ? 1
+            : mode == Mode.TODAY
+            ? 2
+            : mode == Mode.TODAY_TOMORROW
+            ? 4
+            : 6;
         return selected.subList(0, Math.min(maximum, selected.size()));
     }
 
@@ -231,32 +290,96 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         Context context,
         JSONObject snapshot,
         List<JSONObject> entries,
-        Mode mode
+        Mode mode,
+        WidgetSize size
     ) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_plan_list);
+        boolean narrow = size.widthDp < 180;
+        boolean singleColumn = size.widthDp < 100;
+        int headerHeight = singleColumn ? 0 : 32;
+        int rowCapacity = Math.max(1, Math.min(
+            ROW_CONTAINERS.length,
+            (size.heightDp - headerHeight - 20) / 42
+        ));
         String titleKey = mode == Mode.TODAY ? "today" : mode == Mode.TODAY_TOMORROW ? "todayTomorrow" : "week";
         String fallback = mode == Mode.TODAY ? "Today" : mode == Mode.TODAY_TOMORROW ? "Today + tomorrow" : "Next 7 days";
         views.setTextViewText(R.id.widget_title, label(snapshot, titleKey, fallback));
+        views.setViewVisibility(R.id.widget_header, singleColumn ? View.GONE : View.VISIBLE);
+        views.setViewVisibility(R.id.widget_brand, narrow ? View.GONE : View.VISIBLE);
         views.setTextViewText(R.id.widget_empty, label(snapshot, "noPlans", "No upcoming commute plan"));
         views.setViewVisibility(R.id.widget_empty, entries.isEmpty() ? View.VISIBLE : View.GONE);
 
         for (int index = 0; index < ROW_CONTAINERS.length; index++) {
-            if (index >= entries.size()) {
+            if (index >= entries.size() || index >= rowCapacity) {
                 views.setViewVisibility(ROW_CONTAINERS[index], View.GONE);
                 continue;
             }
             JSONObject entry = entries.get(index);
             views.setViewVisibility(ROW_CONTAINERS[index], View.VISIBLE);
+            views.setViewVisibility(ROW_TIME_COLUMNS[index], narrow ? View.GONE : View.VISIBLE);
             views.setTextViewText(ROW_DAYS[index], entry.optString("dayLabel"));
             views.setTextViewText(ROW_TIMES[index], entry.optString("classTime"));
-            views.setTextViewText(ROW_TITLES[index], entry.optString("classTitle"));
             String leaveTime = entry.optString("leaveTime");
             String detail = leaveTime.isEmpty()
                 ? entry.optString("statusText")
                 : label(snapshot, "leave", "Leave") + " " + leaveTime + " · " + entry.optString("route");
-            views.setTextViewText(ROW_DETAILS[index], detail);
+            if (narrow) {
+                views.setTextViewText(
+                    ROW_TITLES[index],
+                    joinNonEmpty(entry.optString("dayLabel"), entry.optString("classTime"), " ")
+                );
+                views.setTextViewText(
+                    ROW_DETAILS[index],
+                    joinNonEmpty(entry.optString("classTitle"), detail, " · ")
+                );
+            } else {
+                views.setTextViewText(ROW_TITLES[index], entry.optString("classTitle"));
+                views.setTextViewText(ROW_DETAILS[index], detail);
+            }
         }
         return views;
+    }
+
+    private static RemoteViews renderMini(
+        Context context,
+        JSONObject snapshot,
+        List<JSONObject> entries,
+        WidgetSize size
+    ) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_mini_plan);
+        int rowCapacity = Math.max(1, Math.min(MINI_ROWS.length, (size.heightDp - 42) / 24));
+        views.setTextViewText(R.id.widget_mini_title, label(snapshot, "mini", "Mini schedule"));
+        views.setViewVisibility(R.id.widget_mini_title, size.widthDp < 140 ? View.GONE : View.VISIBLE);
+        views.setTextViewText(
+            R.id.widget_mini_empty,
+            label(snapshot, "noPlans", "No upcoming commute plan")
+        );
+        views.setViewVisibility(R.id.widget_mini_empty, entries.isEmpty() ? View.VISIBLE : View.GONE);
+
+        for (int index = 0; index < MINI_ROWS.length; index++) {
+            if (index >= entries.size() || index >= rowCapacity) {
+                views.setViewVisibility(MINI_ROWS[index], View.GONE);
+                continue;
+            }
+            JSONObject entry = entries.get(index);
+            String primaryTime = entry.optString("leaveTime");
+            if (primaryTime.isEmpty()) primaryTime = entry.optString("classTime");
+            String text = joinNonEmpty(entry.optString("dayLabel"), primaryTime, " · ");
+            text = joinNonEmpty(text, entry.optString("classTitle"), " · ");
+            views.setViewVisibility(MINI_ROWS[index], View.VISIBLE);
+            views.setTextViewText(MINI_ROWS[index], text);
+        }
+        return views;
+    }
+
+    private static final class WidgetSize {
+        final int widthDp;
+        final int heightDp;
+
+        WidgetSize(int widthDp, int heightDp) {
+            this.widthDp = widthDp;
+            this.heightDp = heightDp;
+        }
     }
 
     private static String joinNonEmpty(String first, String second, String separator) {

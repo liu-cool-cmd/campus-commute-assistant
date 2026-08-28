@@ -37,10 +37,14 @@ school can be added without forking the core engine.
   this is experimental, off by default, and does not overwrite exact course/location bindings.
 - Open Duke's official TransLoc vehicle map in a near-full-screen experimental iframe, with a
   direct official-site fallback.
+- Show an optional Live Trip overlay and focused Leaflet map using Duke TransLoc public vehicle
+  GPS, current route geometry, and ordered stops. It reports route distance and stops to the saved
+  boarding stop, never a predicted ETA.
 - Replace and reschedule Android local notifications when a recommendation changes.
 - Review every remaining class and its matching commute in a grouped, next-7-days plan.
-- Add four Android home-screen widgets: next commute (2×2), today (4×2), today + tomorrow (4×4),
-  and next 7 days (4×5). Widgets use the same saved static-schedule results as the app.
+- Add five Android home-screen widgets: next commute, today, today + tomorrow, next 7 days, and a
+  compact Mini schedule with one upcoming day per line. Widgets use the same saved static-schedule
+  results as the app and support smaller launcher resize ranges.
 - Open Android's battery optimization management screen from Settings when device power management
   delays reminders or widget refreshes.
 - Build as a Vite web app or a Capacitor Android app without an application server.
@@ -49,6 +53,26 @@ v0.1 is a timetable matcher, not a general journey planner. It does not search n
 substitute routes, or calculate transfers. A Home pin adds the walk to the saved boarding stop. A
 recognized building adds the final walk from the class's saved arrival stop; an unknown building
 does not block matching and is treated as the arrival stop itself.
+
+## v0.2 Live Trip (phase 1)
+
+Live Trip is an optional visualization layered on top of the unchanged static recommendation. A
+single foreground cache polls vehicle positions about every 30 seconds, pauses while the document
+is hidden, and reuses lower-frequency route metadata. Vehicle GPS is projected onto TransLoc's
+directed route polyline; route distance, ordered stops, loop seams, stale data, and ambiguous
+parallel/self-crossing segments are handled by the campus-neutral `core/realtime` module.
+
+The Duke adapter maps `Vehicle.RouteID -> TransLoc Route.RouteID -> Route.GtfsId -> GTFS route_id`
+exactly. It never matches names or invents `TL-*` IDs. GPS older than 90 seconds is stale, and the
+provider derives `recordedAt` from response receipt time minus TransLoc's `Seconds` field because
+the legacy timestamp offset is unreliable. `GroundSpeed` is retained but not displayed with an
+unverified unit.
+
+LLCCW is presented as one saved `duke-llccw` family while static matching still evaluates the raw
+`TL-13` daytime and `TL-19` nighttime variants independently. Only verified same-platform stop-ID
+pairs cross that adapter boundary; `TL-269`, `TL-270`, and the non-identical `TL-278/TL-279` pair
+are never aliased. If a selected timing point is absent from the current rider-map route, only Live
+Trip becomes unavailable—the timetable recommendation remains intact.
 
 ## Stack
 
@@ -102,7 +126,7 @@ ask for notification permission when the first future commute reminder is schedu
 declares coarse and fine location access, but runtime permission is requested only after **Use
 current location** is pressed; searching an address or dropping a pin never requests GPS access.
 
-Four widgets appear under **Campus Commute Assistant** in the Android widget picker. Open the app
+Five widgets appear under **Campus Commute Assistant** in the Android widget picker. Open the app
 after changing a calendar, stop, language, buffer, or GTFS data so it can publish a fresh local
 next-7-days snapshot. Widgets re-render the saved snapshot at most every 30 minutes and discard
 classes once their start time has passed; they do not download GTFS or run a second routing engine.
@@ -178,14 +202,14 @@ The GTFS URL was verified on 2026-08-27 to return an `application/zip` response 
 The development server also provides a same-origin compatibility proxy. Native Android requests use
 Capacitor's HTTP bridge.
 
-Duke uses TransLoc for rider-facing live vehicle tracking. During the same review, no current,
-documented, stable, keyless third-party TransLoc API or Duke GTFS-Realtime feed could be verified.
-The old TransLoc OpenAPI references are historical and are not treated as a production contract.
-Consequently `DukeRealtimeProvider` is intentionally unavailable and returns no fabricated data; no
-private endpoint, scraped token, or credential is embedded. A future adapter should only be enabled
-after Duke or TransLoc publishes a supported contract and its CORS/authentication terms are known.
+Duke uses TransLoc for rider-facing live vehicle tracking. On 2026-08-27, the same public rider map
+was verified to expose keyless vehicle-point and route-map responses with CORS-enabled simple GETs.
+`DukeRealtimeProvider` consumes only those public responses, caches route metadata, and keeps every
+TransLoc field/parser inside `campuses/duke`. The endpoints are publicly reachable but undocumented
+and have no published compatibility or rate-limit contract, so every failure degrades to the saved
+static schedule and official-map fallback rather than becoming fatal.
 
-The UI separately offers an experimental embed of the official
+The UI continues to offer an experimental embed of the official
 [Duke TransLoc live map](https://duke.transloc.com/). This is a third-party visual page for viewing
 vehicle GPS positions only: the app does not inspect its DOM, inject JavaScript, copy cookies, read
 ETA predictions, or send its contents into the routing engine. The saved static GTFS and official
@@ -234,7 +258,8 @@ an Android debug APK build.
 
 ## Roadmap
 
-- v0.2: verified realtime arrivals/vehicle positions, delay-aware rerouting, and stale-data warnings.
+- v0.2: Live Trip vehicle positions, route progress, and stale/ambiguous data warnings.
+- Later v0.2: verified arrivals and explicitly opt-in delay-aware recommendation experiments.
 - v0.2: optional system calendar access and richer Duke building coverage.
 - Later: saved route/stop presets, bike timing, more campus adapters, and accessible commute
   preferences.
@@ -242,10 +267,9 @@ an Android debug APK build.
 ## Privacy
 
 Schedules, language, stop bindings, and saved Home coordinates remain on the device. The app sends
-GTFS requests to the campus feed host, map-tile requests to OpenStreetMap, and only user-submitted
-address searches to OpenStreetMap Nominatim. Duke's TransLoc site is contacted only after the user
-opens the live-map page. It has no analytics or application backend. Do not enter confidential
-information in the address search.
+GTFS and foreground Live Trip requests to Duke's TransLoc host, map-tile requests to OpenStreetMap,
+and only user-submitted address searches to OpenStreetMap Nominatim. It has no analytics or
+application backend. Do not enter confidential information in the address search.
 
 ## License
 

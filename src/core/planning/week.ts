@@ -19,6 +19,12 @@ interface WeekPlanOptions {
   serviceTimezone: string;
   now: Date;
   days?: number;
+  resolveTransitSelections?: (
+    selection: TransitSelection,
+    feed: GtfsFeed,
+    commuteAt: Date,
+    routeFamilyId?: string,
+  ) => TransitSelection[];
 }
 
 export function getUpcomingWindowEvents(events: ClassEvent[], now: Date, days = 7): ClassEvent[] {
@@ -32,15 +38,16 @@ export function getUpcomingWindowEvents(events: ClassEvent[], now: Date, days = 
     .sort((left, right) => left.startTime.getTime() - right.startTime.getTime());
 }
 
-function selectionForEvent(
+function selectionsForEvent(
   event: ClassEvent,
   feed: GtfsFeed,
   settings: UserSettings,
   buildings: CampusBuilding[],
-): TransitSelection | undefined {
+  resolveTransitSelections?: WeekPlanOptions['resolveTransitSelections'],
+): TransitSelection[] {
   const routeId = settings.homeTransit?.routeId;
   const originStopId = settings.homeTransit?.originStopId;
-  if (!routeId || !originStopId) return undefined;
+  if (!routeId || !originStopId) return [];
 
   const key = settings.groupClassStopsByBuilding
     ? buildingBindingKey(event, buildings)
@@ -48,12 +55,17 @@ function selectionForEvent(
   const destinationStopId = settings.groupClassStopsByBuilding
     ? settings.buildingStopBindings?.[key]
     : settings.classStopBindings?.[key];
-  if (!destinationStopId) return undefined;
+  if (!destinationStopId) return [];
 
-  const isDownstream = getDownstreamStops(feed, routeId, originStopId).some(
-    (stop) => stop.id === destinationStopId,
+  const base = { routeId, originStopId, destinationStopId };
+  const candidates = resolveTransitSelections
+    ? resolveTransitSelections(base, feed, event.startTime, settings.homeTransit?.routeFamilyId)
+    : [base];
+  return candidates.filter((selection) =>
+    getDownstreamStops(feed, selection.routeId, selection.originStopId).some(
+      (stop) => stop.id === selection.destinationStopId,
+    ),
   );
-  return isDownstream ? { routeId, originStopId, destinationStopId } : undefined;
 }
 
 export function buildWeekPlans({
@@ -64,6 +76,7 @@ export function buildWeekPlans({
   serviceTimezone,
   now,
   days = 7,
+  resolveTransitSelections,
 }: WeekPlanOptions): CommutePlan[] {
   return getUpcomingWindowEvents(events, now, days).map((classEvent) => {
     if (!feed) return { classEvent, status: 'schedule-loading' };
@@ -71,31 +84,35 @@ export function buildWeekPlans({
       return { classEvent, status: 'home-transit-missing' };
     }
 
-    const transitSelection = selectionForEvent(classEvent, feed, settings, buildings);
-    if (!transitSelection) return { classEvent, status: 'arrival-stop-missing' };
-
-    const originStop = feed.stops.find((stop) => stop.id === transitSelection.originStopId);
-    const destinationStop = feed.stops.find(
-      (stop) => stop.id === transitSelection.destinationStopId,
-    );
-    if (!originStop || !destinationStop) {
-      return { classEvent, status: 'arrival-stop-missing' };
-    }
-
-    const recommendations = getCommuteRecommendations({
+    const transitSelections = selectionsForEvent(
+      classEvent,
       feed,
-      request: {
-        origin: settings.home ?? originStop,
-        destination: findBuilding(classEvent.location, buildings) ?? destinationStop,
-        arrivalDeadline: classEvent.startTime,
-        bufferMinutes: settings.defaultBufferMinutes,
-      },
-      transitSelection,
-      serviceTimezone,
-      walkingSpeedMetersPerSecond: settings.walkingSpeedMetersPerSecond,
-      walkingCorrectionFactor: settings.walkingCorrectionFactor,
-    });
+      settings,
+      buildings,
+      resolveTransitSelections,
+    );
+    if (transitSelections.length === 0) return { classEvent, status: 'arrival-stop-missing' };
 
+    const recommendations = transitSelections.flatMap((transitSelection) => {
+      const originStop = feed.stops.find((stop) => stop.id === transitSelection.originStopId);
+      const destinationStop = feed.stops.find(
+        (stop) => stop.id === transitSelection.destinationStopId,
+      );
+      if (!originStop || !destinationStop) return [];
+      return getCommuteRecommendations({
+        feed,
+        request: {
+          origin: settings.home ?? originStop,
+          destination: findBuilding(classEvent.location, buildings) ?? destinationStop,
+          arrivalDeadline: classEvent.startTime,
+          bufferMinutes: settings.defaultBufferMinutes,
+        },
+        transitSelection,
+        serviceTimezone,
+        walkingSpeedMetersPerSecond: settings.walkingSpeedMetersPerSecond,
+        walkingCorrectionFactor: settings.walkingCorrectionFactor,
+      });
+    });
     const distinct = new Map<string, (typeof recommendations)[number]>();
     for (const recommendation of recommendations) {
       const key = [
@@ -107,7 +124,9 @@ export function buildWeekPlans({
       ].join(':');
       if (!distinct.has(key)) distinct.set(key, recommendation);
     }
-    const recommendation = [...distinct.values()][0];
+    const recommendation = [...distinct.values()].sort(
+      (left, right) => right.leaveAt.getTime() - left.leaveAt.getTime(),
+    )[0];
     return recommendation
       ? { classEvent, recommendation, status: 'ready' }
       : { classEvent, status: 'no-matching-departure' };

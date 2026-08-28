@@ -8,6 +8,7 @@ interface RecommendationCardProps {
   language: AppLanguage;
   classEvent: ClassEvent;
   recommendation: CommuteRecommendation;
+  routeName?: string;
   compact?: boolean;
 }
 
@@ -15,9 +16,11 @@ export function RecommendationCard({
   language,
   classEvent,
   recommendation,
+  routeName: routeNameOverride,
   compact = false,
 }: RecommendationCardProps) {
-  const routeName = recommendation.route.shortName || recommendation.route.longName;
+  const routeName =
+    routeNameOverride || recommendation.route.shortName || recommendation.route.longName;
   if (compact) {
     return (
       <article className="alternative-card">

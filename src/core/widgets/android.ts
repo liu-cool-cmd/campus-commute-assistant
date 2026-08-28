@@ -24,6 +24,7 @@ const timeLabel = (date: Date, language: AppLanguage) =>
 export async function syncAndroidWidgets(
   plans: CommutePlan[],
   language: AppLanguage,
+  routeName?: (routeId: string, fallback: string) => string,
 ): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return;
 
@@ -35,6 +36,7 @@ export async function syncAndroidWidgets(
       today: translate(language, 'widgetToday'),
       todayTomorrow: translate(language, 'widgetTodayTomorrow'),
       week: translate(language, 'widgetWeek'),
+      mini: translate(language, 'widgetMini'),
       noPlans: translate(language, 'widgetNoPlans'),
       leave: translate(language, 'widgetLeave'),
       openApp: translate(language, 'widgetOpenApp'),
@@ -53,7 +55,13 @@ export async function syncAndroidWidgets(
       leaveAt: recommendation?.leaveAt.getTime(),
       leaveTime: recommendation ? timeLabel(recommendation.leaveAt, language) : undefined,
       departureTime: recommendation ? timeLabel(recommendation.departureTime, language) : undefined,
-      route: recommendation?.route.shortName || recommendation?.route.longName,
+      route: recommendation
+        ? (routeName?.(
+            recommendation.route.id,
+            recommendation.route.shortName || recommendation.route.longName,
+          ) ??
+          (recommendation.route.shortName || recommendation.route.longName))
+        : undefined,
       statusText:
         status === 'ready'
           ? ''

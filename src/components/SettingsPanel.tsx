@@ -6,6 +6,7 @@ import type {
   AppLanguage,
   CampusBuilding,
   CampusConfig,
+  CampusRouteFamily,
   ClassEvent,
   GtfsFeed,
   Location,
@@ -29,6 +30,7 @@ interface SettingsPanelProps {
   gtfsUpdatedAt?: Date;
   refreshing: boolean;
   feed?: GtfsFeed;
+  routeFamilies?: CampusRouteFamily[];
   classes: ClassEvent[];
   onSettings(settings: UserSettings): void;
   onImportClasses(events: ClassEvent[]): void;
@@ -61,6 +63,7 @@ export function SettingsPanel({
   gtfsUpdatedAt,
   refreshing,
   feed,
+  routeFamilies,
   classes,
   onSettings,
   onImportClasses,
@@ -244,6 +247,7 @@ export function SettingsPanel({
       <HomeTransitSettings
         language={language}
         feed={feed}
+        routeFamilies={routeFamilies}
         value={settings.homeTransit}
         onChange={(homeTransit) => onSettings({ ...settings, homeTransit })}
       />

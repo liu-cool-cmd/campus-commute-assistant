@@ -1,1 +1,8 @@
-export type { ArrivalPrediction, RealtimeProvider, VehiclePosition } from '../types';
+export type {
+  ArrivalPrediction,
+  RealtimeProvider,
+  RealtimeRoute,
+  RealtimeRouteStop,
+  RealtimeSnapshot,
+  VehiclePosition,
+} from '../types';

@@ -2,6 +2,12 @@ import type { CampusAdapter } from '../../core/types';
 import { dukeBuildings } from './buildings';
 import { DukeRealtimeProvider } from './realtime';
 import { migrateDukeOfficialSelection, supplementDukeOfficialSchedules } from './officialSchedule';
+import {
+  dukeRouteFamilies,
+  migrateDukeHomeTransit,
+  migrateDukeRouteFamilySettings,
+  resolveDukeTransitSelections,
+} from './routeFamilies';
 
 export const dukeCampus: CampusAdapter = {
   config: {
@@ -16,6 +22,10 @@ export const dukeCampus: CampusAdapter = {
   },
   buildings: dukeBuildings,
   realtime: new DukeRealtimeProvider(),
+  routeFamilies: dukeRouteFamilies,
+  migrateSettings: migrateDukeRouteFamilySettings,
+  migrateHomeTransit: migrateDukeHomeTransit,
+  resolveTransitSelections: resolveDukeTransitSelections,
   supplementGtfs: supplementDukeOfficialSchedules,
   migrateTransitSelection: migrateDukeOfficialSelection,
 };

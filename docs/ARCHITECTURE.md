@@ -9,7 +9,8 @@ The core modules contain no Duke-specific branching and can run in Vitest withou
 - `core/gtfs`: downloads, parses, validates, and caches a GTFS zip in IndexedDB.
 - `core/locations`: normalizes building labels and performs geospatial calculations.
 - `core/routing`: matches the latest feasible trip for the user's exact route and stop selection.
-- `core/realtime`: vendor-neutral future realtime contracts.
+- `core/realtime`: vendor-neutral snapshots, request deduplication, polyline projection, directed
+  loop progress, and conservative next-vehicle selection.
 - `core/notifications`: schedules stable, replaceable local notifications.
 - `core/planning`: derives a next-seven-days presentation from imported events and calls the same
   routing engine used by the next-class screen; it does not implement alternate routing rules.
@@ -19,8 +20,10 @@ The core modules contain no Duke-specific branching and can run in Vitest withou
   IndexedDB because Preferences is intentionally for small key/value data.
 - `campuses/*`: campus metadata, building aliases, data sources, optional official schedule
   supplements, and realtime adapters.
-- `components/LiveTransitMap`: optional third-party live-map presentation. It displays a campus URL
-  but exposes no vehicle or ETA data to core modules.
+- `components/LiveRouteOverlay` and `components/LiveTripMap`: two presentations of the same derived
+  `LiveTripProgress`; neither fetches nor independently selects a vehicle.
+- `components/LiveTransitMap`: isolated third-party iframe fallback. It exposes no vehicle or ETA
+  data to core modules.
 - `i18n.ts`: a small UI/notification dictionary for English and Simplified Chinese. Feed-provided
   route and stop names remain unchanged.
 
@@ -76,9 +79,10 @@ describe missing setup or no matching departure; they do not introduce route sea
 routing.
 
 On Android, React serializes the resulting plans to `widget-plans-v1` in the same private
-`CapacitorStorage` preferences group used by Capacitor Preferences. Four `AppWidgetProvider`
-implementations render different subsets and sizes: next commute, today, today + tomorrow, and next
-seven days. Providers never parse GTFS and never reimplement routing. They filter expired entries,
+`CapacitorStorage` preferences group used by Capacitor Preferences. Five `AppWidgetProvider`
+implementations render different subsets and sizes: next commute, today, today + tomorrow, next
+seven days, and a compact one-row-per-day Mini schedule. Providers never parse GTFS and never
+reimplement routing. They filter expired entries,
 refresh after app-side changes, and request a periodic render no more frequently than Android's
 30-minute widget minimum. Opening the app is required to recompute the snapshot after underlying
 course, preference, or feed data changes.
@@ -99,6 +103,38 @@ load timeout promotes the fallback and permits a retry. Because same-origin prot
 cross-origin frame failures impossible to observe reliably, successful `load` is not treated as a
 data-integrity signal. Android keeps mixed content disabled and does not add the third-party host to
 Capacitor's top-level `allowNavigation` list.
+
+## Live Trip realtime layer
+
+Static schedule selection remains authoritative for route variant, boarding stop, arrival stop,
+leave time, confidence, notifications, week plans, and widgets. Realtime is a one-way optional
+enhancement:
+
+```text
+Duke public rider-map responses -> DukeRealtimeProvider -> RealtimeSnapshotCache
+                                                        -> routeProgress
+                                                        -> LiveTripProgress
+                                                           |-> home overlay
+                                                           `-> focused Leaflet map
+```
+
+The Duke parser is the only layer that knows TransLoc endpoints and PascalCase response fields. It
+maps the numeric provider RouteID through the returned route object's exact `GtfsId`; core modules
+receive only GTFS route IDs, decoded coordinates, ordered stops, and normalized vehicle records.
+Route metadata is cached for 15 minutes, vehicle snapshots refresh about every 30 seconds while the
+document is visible, and concurrent requests are deduplicated.
+
+`routeProgress` projects GPS and ordered stops onto cumulative polyline distance. Closed routes
+allow one validated stop-order seam wrap and use directed cyclic distance rather than geographic
+or shortest-path distance. Repeated/self-crossing segments require a unique projection or heading
+disambiguation. A vehicle older than 90 seconds, off-route, directionally contradictory, or only
+reachable through an unconfirmed next lap is not presented as the next bus.
+
+Duke's `duke-llccw` family is a UI/storage compatibility layer, not a feed rewrite. The existing
+matcher runs independently with `TL-13` and `TL-19`, and normal service calendars/windows determine
+which recommendations exist. Only the Duke adapter owns verified same-platform stop mappings.
+Unmapped timing points such as TL-269/TL-270 leave static results untouched and make only realtime
+visualization unavailable.
 
 ## Adding a campus
 

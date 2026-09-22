@@ -91,7 +91,10 @@ describe('Duke published Fall 2026 schedules', () => {
           time.tripId.startsWith(weekdays + ':') && time.departureSeconds === 24 * 3600 + 20 * 60,
       ),
     ).toBe(true);
-    expect(data.datasets.at(-1)!.rows.at(-1)![0]).toBe(18 * 60 + 30);
+    const h2Weekend = data.datasets.find(
+      (d) => d.routeId === 'TL-16' && d.days.includes(0),
+    );
+    expect(h2Weekend?.rows.at(-1)![0]).toBe(18 * 60 + 30);
   });
 
   it('does not replace a repaired upstream feed with real absolute-time schedules', () => {

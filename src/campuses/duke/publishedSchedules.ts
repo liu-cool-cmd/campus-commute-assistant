@@ -1,7 +1,20 @@
 import type { GtfsFeed, ServiceCalendar, StopTime, Trip } from '../../core/types';
 import data from './publishedTimetables.json';
+import { canonicalRouteTemplates } from './canonicalRouteTemplates';
 
 const PREFIX = 'duke-published:2026-fall:';
+
+function getCanonicalTemplate(routeId: string): StopTime[] | undefined {
+  const stops = canonicalRouteTemplates[routeId];
+  if (!stops) return undefined;
+  return stops.map((s, index) => ({
+    tripId: `canonical:${routeId}`,
+    stopId: s.stopId,
+    arrivalSeconds: s.secondsFromStart,
+    departureSeconds: s.secondsFromStart,
+    stopSequence: index + 1,
+  }));
+}
 
 /** Apply the audited Fall 2026 tables to the known relative-time TransLoc export.
  * The downloaded archive is untouched. All original route/stop IDs remain exact.
@@ -17,8 +30,6 @@ export function applyDukePublishedSchedules(feed: GtfsFeed): GtfsFeed {
   for (const times of timesByTrip.values()) times.sort((a, b) => a.stopSequence - b.stopSequence);
   const covered = new Set([
     ...data.datasets.map((table) => table.routeId),
-    'TL-4',
-    'TL-17',
     'TL-10',
   ]);
   const replaced = new Set<string>();
@@ -26,8 +37,7 @@ export function applyDukePublishedSchedules(feed: GtfsFeed): GtfsFeed {
   for (const routeId of covered) {
     const trips = feed.trips.filter((trip) => trip.routeId === routeId);
     if (!trips.length || trips.some((trip) => trip.scheduleSource)) continue;
-    // These routes have no matching published replacement; only reject the known export's
-    // unscheduled relative templates. Keep any future frequency-backed repair intact.
+    // These routes have no matching published replacement or keep future frequency-backed repairs intact.
     if (
       ['TL-4', 'TL-17', 'TL-10'].includes(routeId) &&
       trips.some((trip) => feed.frequencies.some((f) => f.tripId === trip.id))
@@ -52,7 +62,7 @@ export function applyDukePublishedSchedules(feed: GtfsFeed): GtfsFeed {
   const calendars = [...feed.calendars];
   const stopIds = new Set(feed.stops.map((stop) => stop.id));
   data.datasets.forEach((table, tableIndex) => {
-    const template = templates.get(table.routeId);
+    const template = templates.get(table.routeId) ?? getCanonicalTemplate(table.routeId);
     if (!template) return;
     const serviceId = `${PREFIX}${tableIndex}`;
     calendars.push({

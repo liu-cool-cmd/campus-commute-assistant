@@ -292,6 +292,7 @@ export function SettingsPanel({
                 key={key}
                 feed={feed}
                 routeId={settings.homeTransit!.routeId!}
+                routeFamilyId={settings.homeTransit?.routeFamilyId}
                 originStopId={settings.homeTransit!.originStopId!}
                 classEvent={event}
                 language={language}

@@ -27,6 +27,6 @@ export const dukeCampus: CampusAdapter = {
   migrateSettings: migrateDukeRouteFamilySettings,
   migrateHomeTransit: migrateDukeHomeTransit,
   resolveTransitSelections: resolveDukeTransitSelections,
-  supplementGtfs: (feed) => applyDukePublishedSchedules(supplementDukeOfficialSchedules(feed)),
+  supplementGtfs: (feed) => supplementDukeOfficialSchedules(applyDukePublishedSchedules(feed)),
   migrateTransitSelection: migrateDukeOfficialSelection,
 };

@@ -21,6 +21,7 @@ import { applyLiveTripFallback } from './core/realtime/routeProgressFallback';
 import { getCommuteRecommendations } from './core/routing/engine';
 import { loadClasses, loadSettings, saveClasses, saveSettings } from './core/storage/preferences';
 import type { ClassEvent, RealtimeSnapshot, TransitSelection, UserSettings } from './core/types';
+import { mapFamilyStopToVariant } from './campuses/duke/routeFamilies';
 import { syncAndroidWidgets } from './core/widgets/android';
 import { localeFor, translate } from './i18n';
 
@@ -152,13 +153,25 @@ export default function App() {
     ) {
       return undefined;
     }
-    return getDownstreamStops(
-      snapshot.feed,
-      settings.homeTransit.routeId,
-      settings.homeTransit.originStopId,
-    ).some((stop) => stop.id === configuredDestinationStopId)
-      ? configuredDestinationStopId
-      : undefined;
+    const family = campus.routeFamilies?.find((f) => f.id === settings.homeTransit?.routeFamilyId);
+    if (!family) {
+      return getDownstreamStops(
+        snapshot.feed,
+        settings.homeTransit.routeId,
+        settings.homeTransit.originStopId,
+      ).some((stop) => stop.id === configuredDestinationStopId)
+        ? configuredDestinationStopId
+        : undefined;
+    }
+    for (const routeId of family.routeIds) {
+      const originId = mapFamilyStopToVariant(family.id, settings.homeTransit.originStopId, routeId);
+      const destId = mapFamilyStopToVariant(family.id, configuredDestinationStopId, routeId);
+      if (!originId || !destId) continue;
+      if (getDownstreamStops(snapshot.feed, routeId, originId).some((stop) => stop.id === destId)) {
+        return configuredDestinationStopId;
+      }
+    }
+    return undefined;
   }, [configuredDestinationStopId, settings.homeTransit, snapshot]);
   const transitSelection = useMemo<TransitSelection | undefined>(
     () =>
@@ -179,9 +192,10 @@ export default function App() {
           snapshot.feed,
           nextClass.startTime,
           settings.homeTransit?.routeFamilyId,
+          realtimeSnapshot,
         )
       : [transitSelection];
-  }, [nextClass, settings.homeTransit?.routeFamilyId, snapshot, transitSelection]);
+  }, [nextClass, realtimeSnapshot, settings.homeTransit?.routeFamilyId, snapshot, transitSelection]);
 
   useEffect(() => {
     if (!snapshot || !nextClass || !settings.transitSelection) return;
@@ -484,6 +498,7 @@ export default function App() {
                     language={settings.language}
                     feed={snapshot.feed}
                     routeId={settings.homeTransit.routeId}
+                    routeFamilyId={settings.homeTransit.routeFamilyId}
                     originStopId={settings.homeTransit.originStopId}
                     classEvent={nextClass}
                     value={destinationStopId}

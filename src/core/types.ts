@@ -267,6 +267,7 @@ export interface CampusAdapter {
     feed: GtfsFeed,
     commuteAt: Date,
     routeFamilyId?: string,
+    realtimeSnapshot?: RealtimeSnapshot,
   ): TransitSelection[];
   supplementGtfs?(feed: GtfsFeed): GtfsFeed;
   migrateTransitSelection?(selection?: TransitSelectionDraft): TransitSelectionDraft | undefined;

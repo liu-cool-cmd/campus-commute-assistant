@@ -1,13 +1,6 @@
 import { divIcon, latLngBounds } from 'leaflet';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  CircleMarker,
-  MapContainer,
-  Marker,
-  Polyline,
-  TileLayer,
-  useMap,
-} from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import type { LiveTripProgress } from '../core/realtime/routeProgress';
 import type { AppLanguage, Coordinates } from '../core/types';
 import { useRealtimeAge } from '../hooks/useRealtimeAge';
@@ -55,12 +48,7 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
       locations.push(...progress.route.polyline.slice(0, 15));
     }
     return locations;
-  }, [
-    progress.boardingStop,
-    progress.arrivalStop,
-    progress.vehicle,
-    progress.route?.polyline,
-  ]);
+  }, [progress.boardingStop, progress.arrivalStop, progress.vehicle, progress.route?.polyline]);
 
   // Initial fit when trip changes
   useEffect(() => {
@@ -68,14 +56,11 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
       lastTripKeyRef.current = tripKey;
       const targetLocations = calculateTargetLocations();
       if (targetLocations.length) {
-        map.fitBounds(
-          latLngBounds(targetLocations.map((l) => [l.lat, l.lon])),
-          {
-            padding: [24, 24],
-            maxZoom: 16,
-            animate: false,
-          },
-        );
+        map.fitBounds(latLngBounds(targetLocations.map((l) => [l.lat, l.lon])), {
+          padding: [24, 24],
+          maxZoom: 16,
+          animate: false,
+        });
       }
     }
   }, [tripKey, calculateTargetLocations, map]);
@@ -92,14 +77,11 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
       if (!innerBounds.contains(vehicleLatLng)) {
         const targetLocations = calculateTargetLocations();
         if (targetLocations.length) {
-          map.flyToBounds(
-            latLngBounds(targetLocations.map((l) => [l.lat, l.lon])),
-            {
-              padding: [24, 24],
-              maxZoom: 16,
-              duration: 0.8,
-            },
-          );
+          map.flyToBounds(latLngBounds(targetLocations.map((l) => [l.lat, l.lon])), {
+            padding: [24, 24],
+            maxZoom: 16,
+            duration: 0.8,
+          });
         }
       }
     } catch {
@@ -110,12 +92,7 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
   return null;
 }
 
-export function LiveRouteOverlay({
-  language,
-  routeName,
-  progress,
-  onOpen,
-}: LiveRouteOverlayProps) {
+export function LiveRouteOverlay({ language, routeName, progress, onOpen }: LiveRouteOverlayProps) {
   const dynamicAge = useRealtimeAge(progress.vehicle?.recordedAt) ?? progress.gpsAgeSeconds ?? 0;
 
   const vehicleIcon = (heading = 0, isFallback = false) =>
@@ -222,7 +199,12 @@ export function LiveRouteOverlay({
                     key={stop.id}
                     center={[stop.lat, stop.lon]}
                     radius={3}
-                    pathOptions={{ color: '#687e74', fillColor: '#ffffff', fillOpacity: 1, weight: 1.5 }}
+                    pathOptions={{
+                      color: '#687e74',
+                      fillColor: '#ffffff',
+                      fillOpacity: 1,
+                      weight: 1.5,
+                    }}
                   />
                 );
               })}
@@ -232,7 +214,12 @@ export function LiveRouteOverlay({
                 <CircleMarker
                   center={[progress.boardingStop.lat, progress.boardingStop.lon]}
                   radius={7}
-                  pathOptions={{ color: '#d97745', fillColor: '#ffffff', fillOpacity: 1, weight: 3.5 }}
+                  pathOptions={{
+                    color: '#d97745',
+                    fillColor: '#ffffff',
+                    fillOpacity: 1,
+                    weight: 3.5,
+                  }}
                 />
               )}
 
@@ -241,7 +228,12 @@ export function LiveRouteOverlay({
                 <CircleMarker
                   center={[progress.arrivalStop.lat, progress.arrivalStop.lon]}
                   radius={7}
-                  pathOptions={{ color: '#ffffff', fillColor: '#123c31', fillOpacity: 1, weight: 2 }}
+                  pathOptions={{
+                    color: '#ffffff',
+                    fillColor: '#123c31',
+                    fillOpacity: 1,
+                    weight: 2,
+                  }}
                 />
               )}
 
@@ -286,9 +278,13 @@ export function LiveRouteOverlay({
             <span className="live-route-separator">·</span>
             <span className="live-route-age">
               {isFallback
-                ? `${translate(language, 'lastKnownPosition')} · ${translate(language, 'lastGpsAge', {
-                    seconds: dynamicAge,
-                  })}`
+                ? `${translate(language, 'lastKnownPosition')} · ${translate(
+                    language,
+                    'lastGpsAge',
+                    {
+                      seconds: dynamicAge,
+                    },
+                  )}`
                 : translate(language, 'gpsUpdated', { seconds: dynamicAge })}
             </span>
           </div>

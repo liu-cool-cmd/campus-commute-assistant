@@ -266,9 +266,7 @@ export function LiveTripMap({
                     {translate(language, 'lastGpsAge', { seconds: dynamicAge })}
                   </span>
                 ) : (
-                  <span>
-                    {translate(language, 'gpsUpdated', { seconds: dynamicAge })}
-                  </span>
+                  <span>{translate(language, 'gpsUpdated', { seconds: dynamicAge })}</span>
                 )}
                 {progress.reason === 'seam-crossing' && (
                   <span>{translate(language, 'liveLoopDistanceNote')}</span>

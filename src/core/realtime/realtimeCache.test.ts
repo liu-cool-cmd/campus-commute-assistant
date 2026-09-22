@@ -116,4 +116,3 @@ describe('RealtimeSnapshotCache', () => {
     expect(isRealtimeSnapshotIdentical(snap1, snapMoved)).toBe(false);
   });
 });
-

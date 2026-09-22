@@ -64,11 +64,7 @@ export function createMiniMapProjection(options: MiniMapViewportOptions): MiniMa
 
   // Check if vehicle is within readable distance of boarding stop
   const vehicleDist =
-    vehicle && boardingStop
-      ? distanceMeters(vehicle, boardingStop)
-      : vehicle
-        ? 0
-        : undefined;
+    vehicle && boardingStop ? distanceMeters(vehicle, boardingStop) : vehicle ? 0 : undefined;
 
   const vehicleIsNearby =
     vehicle && (vehicleDist === undefined || vehicleDist <= MAX_VIEWPORT_SPAN_METERS);
@@ -82,7 +78,7 @@ export function createMiniMapProjection(options: MiniMapViewportOptions): MiniMa
   if (arrivalStop && boardingStop) {
     const arrivalDist = distanceMeters(boardingStop, arrivalStop);
     const combinedSpanEstimate =
-      (vehicleDist && vehicleIsNearby ? Math.max(vehicleDist, arrivalDist) : arrivalDist);
+      vehicleDist && vehicleIsNearby ? Math.max(vehicleDist, arrivalDist) : arrivalDist;
 
     if (combinedSpanEstimate <= MAX_VIEWPORT_SPAN_METERS * 0.85) {
       keyPoints.push(arrivalStop);
@@ -131,10 +127,7 @@ export function createMiniMapProjection(options: MiniMapViewportOptions): MiniMa
 
     // Add 35% padding for breathing room around route and markers
     const rawSpan = Math.max(deltaXMeters, deltaYMeters) * 1.35;
-    spanMeters = Math.max(
-      MIN_VIEWPORT_SPAN_METERS,
-      Math.min(MAX_VIEWPORT_SPAN_METERS, rawSpan),
-    );
+    spanMeters = Math.max(MIN_VIEWPORT_SPAN_METERS, Math.min(MAX_VIEWPORT_SPAN_METERS, rawSpan));
   }
 
   const metersPerDegLat = 111_000;
@@ -153,10 +146,7 @@ export function createMiniMapProjection(options: MiniMapViewportOptions): MiniMa
   const getEdgeIndicator = (coord: Coordinates): EdgeIndicator => {
     const pt = project(coord);
     const isOffscreen =
-      pt.x < SVG_INNER_MIN ||
-      pt.x > SVG_INNER_MAX ||
-      pt.y < SVG_INNER_MIN ||
-      pt.y > SVG_INNER_MAX;
+      pt.x < SVG_INNER_MIN || pt.x > SVG_INNER_MAX || pt.y < SVG_INNER_MIN || pt.y > SVG_INNER_MAX;
 
     if (!isOffscreen) {
       return {
@@ -177,14 +167,8 @@ export function createMiniMapProjection(options: MiniMapViewportOptions): MiniMa
     if (dy > 0) t = Math.min(t, (SVG_INNER_MAX - SVG_CENTER) / dy);
     else if (dy < 0) t = Math.min(t, (SVG_INNER_MIN - SVG_CENTER) / dy);
 
-    const edgeX = Math.max(
-      SVG_INNER_MIN,
-      Math.min(SVG_INNER_MAX, SVG_CENTER + dx * t),
-    );
-    const edgeY = Math.max(
-      SVG_INNER_MIN,
-      Math.min(SVG_INNER_MAX, SVG_CENTER + dy * t),
-    );
+    const edgeX = Math.max(SVG_INNER_MIN, Math.min(SVG_INNER_MAX, SVG_CENTER + dx * t));
+    const edgeY = Math.max(SVG_INNER_MIN, Math.min(SVG_INNER_MAX, SVG_CENTER + dy * t));
     const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
 
     return {

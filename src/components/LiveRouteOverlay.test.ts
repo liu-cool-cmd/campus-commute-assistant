@@ -19,12 +19,7 @@ vi.mock('react-leaflet', () => ({
   MapContainer: ({ children, className }: { children: React.ReactNode; className?: string }) =>
     createElement('div', { className, 'data-testid': 'mini-map' }, children),
   TileLayer: () => createElement('div', { 'data-testid': 'tile-layer' }),
-  Polyline: ({
-    pathOptions,
-  }: {
-    positions: unknown;
-    pathOptions?: { color?: string };
-  }) =>
+  Polyline: ({ pathOptions }: { positions: unknown; pathOptions?: { color?: string } }) =>
     createElement('div', {
       'data-testid': 'polyline',
       'data-color': pathOptions?.color,
@@ -40,12 +35,7 @@ vi.mock('react-leaflet', () => ({
       'data-color': pathOptions?.color,
       'data-fill': pathOptions?.fillColor,
     }),
-  Marker: ({
-    position,
-  }: {
-    position: [number, number];
-    icon: unknown;
-  }) =>
+  Marker: ({ position }: { position: [number, number]; icon: unknown }) =>
     createElement('div', {
       'data-testid': 'marker',
       'data-pos': position.join(','),

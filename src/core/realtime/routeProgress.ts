@@ -12,6 +12,7 @@ const PROJECTION_SEPARATION_METERS = 60;
 const MAX_OFF_ROUTE_METERS = 80;
 const STOP_ORDER_TOLERANCE_METERS = 40;
 const HEADING_MISMATCH_DEGREES = 100;
+export const DEFAULT_STALE_AFTER_SECONDS = 60;
 
 export interface RouteProjection {
   segmentIndex: number;
@@ -55,6 +56,7 @@ export interface LiveTripProgress {
   boardingToArrivalPath: Coordinates[];
   passedPath: Coordinates[];
   displayStops: LiveTripStopProgress[];
+  isFallback?: boolean;
 }
 
 type ProjectionCandidate = RouteProjection;
@@ -412,7 +414,7 @@ export function calculateLiveTripProgress(options: LiveTripOptions): LiveTripPro
         vehicle.routeId === route.routeId &&
         vehicle.isOnRoute &&
         Math.max(vehicle.gpsAgeSeconds, (now.getTime() - vehicle.recordedAt.getTime()) / 1000) <=
-          (options.staleAfterSeconds ?? 90),
+          (options.staleAfterSeconds ?? DEFAULT_STALE_AFTER_SECONDS),
     ),
   };
 }
@@ -420,7 +422,7 @@ export function calculateLiveTripProgress(options: LiveTripOptions): LiveTripPro
 function calculateProgress(options: LiveTripOptions): LiveTripProgress {
   const { snapshot, routeId, boardingStopId, arrivalStopId } = options;
   const now = options.now ?? new Date();
-  const staleAfterSeconds = options.staleAfterSeconds ?? 90;
+  const staleAfterSeconds = options.staleAfterSeconds ?? DEFAULT_STALE_AFTER_SECONDS;
   const route = snapshot.routes.find((item) => item.routeId === routeId);
   if (!route) return unavailable('unavailable', 'route-not-found');
   const prepared = prepareRoute(route.polyline, route.isLoop);

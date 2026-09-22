@@ -15,8 +15,9 @@ import { getDownstreamStops } from './core/gtfs/selection';
 import { findBuilding } from './core/locations/geo';
 import { scheduleCommuteNotification } from './core/notifications/local';
 import { buildWeekPlans } from './core/planning/week';
-import { RealtimeSnapshotCache } from './core/realtime/realtimeCache';
+import { isRealtimeSnapshotIdentical, RealtimeSnapshotCache } from './core/realtime/realtimeCache';
 import { calculateLiveTripProgress, type LiveTripProgress } from './core/realtime/routeProgress';
+import { applyLiveTripFallback } from './core/realtime/routeProgressFallback';
 import { getCommuteRecommendations } from './core/routing/engine';
 import { loadClasses, loadSettings, saveClasses, saveSettings } from './core/storage/preferences';
 import type { ClassEvent, RealtimeSnapshot, TransitSelection, UserSettings } from './core/types';
@@ -65,6 +66,7 @@ export default function App() {
   const [realtimeSnapshot, setRealtimeSnapshot] = useState<RealtimeSnapshot>();
   const [now, setNow] = useState(() => new Date());
   const contentRef = useRef<HTMLElement>(null);
+  const lastKnownGoodRef = useRef<LiveTripProgress | undefined>(undefined);
   const realtimeCache = useMemo(() => new RealtimeSnapshotCache(campus.realtime), []);
 
   useEffect(() => {
@@ -246,24 +248,41 @@ export default function App() {
     ? routeName(recommended.route.id, recommended.route.shortName || recommended.route.longName)
     : '';
 
+  const activeTripKey = `${recommended?.route.id ?? ''}:${recommended?.originStop.id ?? ''}:${recommended?.destinationStop.id ?? ''}`;
   useEffect(() => {
-    if (!recommended || !campus.realtime.available) return;
+    lastKnownGoodRef.current = undefined;
+  }, [activeTripKey]);
+
+  useEffect(() => {
+    const isRealtimeActive =
+      (tab === 'home' || tab === 'live-trip-map') &&
+      Boolean(recommended) &&
+      campus.realtime.available;
+    if (!isRealtimeActive) return;
+
     let disposed = false;
+    let inFlight = false;
     const controller = new AbortController();
-    const refresh = () => {
+    const refresh = async () => {
       if (document.visibilityState !== 'visible') return;
-      void realtimeCache
-        .refresh(controller.signal)
-        .then((value) => {
-          if (!disposed) setRealtimeSnapshot(value);
-        })
-        .catch(() => undefined);
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const value = await realtimeCache.refresh(controller.signal);
+        if (!disposed) {
+          setRealtimeSnapshot((prev) => (isRealtimeSnapshotIdentical(prev, value) ? prev : value));
+        }
+      } catch {
+        // Keep existing snapshot on transient network failure
+      } finally {
+        inFlight = false;
+      }
     };
     const visibilityChanged = () => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible') void refresh();
     };
-    refresh();
-    const timer = window.setInterval(refresh, 30_000);
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 5_000);
     document.addEventListener('visibilitychange', visibilityChanged);
     return () => {
       disposed = true;
@@ -271,7 +290,7 @@ export default function App() {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', visibilityChanged);
     };
-  }, [realtimeCache, recommended]);
+  }, [realtimeCache, recommended, tab]);
 
   const liveTripProgress = useMemo<LiveTripProgress>(() => {
     if (!recommended || !realtimeSnapshot) {
@@ -284,13 +303,20 @@ export default function App() {
         displayStops: [],
       };
     }
-    return calculateLiveTripProgress({
+    const raw = calculateLiveTripProgress({
       snapshot: realtimeSnapshot,
       routeId: recommended.route.id,
       boardingStopId: recommended.originStop.id,
       arrivalStopId: recommended.destinationStop.id,
       now,
     });
+    const { progress, nextLastKnownGood } = applyLiveTripFallback(
+      raw,
+      lastKnownGoodRef.current,
+      now,
+    );
+    lastKnownGoodRef.current = nextLastKnownGood;
+    return progress;
   }, [now, realtimeSnapshot, recommended]);
 
   const weekPlans = useMemo(

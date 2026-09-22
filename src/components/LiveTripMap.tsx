@@ -1,5 +1,5 @@
 import { divIcon, latLngBounds } from 'leaflet';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CircleMarker,
   MapContainer,
@@ -11,6 +11,7 @@ import {
 } from 'react-leaflet';
 import type { LiveTripProgress } from '../core/realtime/routeProgress';
 import type { AppLanguage, Coordinates, Location } from '../core/types';
+import { useRealtimeAge } from '../hooks/useRealtimeAge';
 import { translate } from '../i18n';
 
 interface LiveTripMapProps {
@@ -26,21 +27,77 @@ interface LiveTripMapProps {
 const points = (path: { lat: number; lon: number }[]): [number, number][] =>
   path.map(({ lat, lon }) => [lat, lon]);
 
-function FitTrip({ progress }: Pick<LiveTripMapProps, 'progress'>) {
+interface FitTripControllerProps {
+  progress: LiveTripProgress;
+  recenterTrigger: number;
+}
+
+function FitTripController({ progress, recenterTrigger }: FitTripControllerProps) {
   const map = useMap();
-  useEffect(() => {
-    const locations: Coordinates[] = [
+  const lastTripKeyRef = useRef<string>('');
+  const userAdjustedRef = useRef<boolean>(false);
+
+  const tripKey = `${progress.route?.routeId ?? ''}:${progress.boardingStop?.id ?? ''}:${progress.arrivalStop?.id ?? ''}`;
+
+  const fit = useCallback(() => {
+    const rawLocations = [
       progress.boardingStop,
       progress.arrivalStop,
       ...(progress.vehicle ? [progress.vehicle] : (progress.mapVehicles ?? [])),
-    ].filter((point) => point !== undefined);
-    if (!locations.length) locations.push(...(progress.route?.polyline ?? []));
+    ];
+    const locations: Coordinates[] = rawLocations
+      .filter((point) => point !== undefined)
+      .map((p) => ({ lat: p!.lat, lon: p!.lon }));
+
+    if (!locations.length && progress.route?.polyline) {
+      locations.push(...progress.route.polyline);
+    }
     if (!locations.length) return;
-    map.fitBounds(latLngBounds(locations.map((location) => [location.lat, location.lon])), {
-      padding: [34, 34],
+
+    map.fitBounds(latLngBounds(locations.map((loc) => [loc.lat, loc.lon])), {
+      padding: [38, 38],
       maxZoom: 16,
+      animate: true,
     });
-  }, [map, progress]);
+  }, [
+    map,
+    progress.boardingStop,
+    progress.arrivalStop,
+    progress.vehicle,
+    progress.mapVehicles,
+    progress.route?.polyline,
+  ]);
+
+  // Detect user manual dragging or zooming so vehicle ticks never override user viewport
+  useEffect(() => {
+    const onUserInteraction = () => {
+      userAdjustedRef.current = true;
+    };
+    map.on('movestart', onUserInteraction);
+    map.on('zoomstart', onUserInteraction);
+    return () => {
+      map.off('movestart', onUserInteraction);
+      map.off('zoomstart', onUserInteraction);
+    };
+  }, [map]);
+
+  // Fit bounds ONLY on initial mount or when route / stops genuinely change
+  useEffect(() => {
+    if (tripKey && tripKey !== lastTripKeyRef.current) {
+      lastTripKeyRef.current = tripKey;
+      userAdjustedRef.current = false;
+      fit();
+    }
+  }, [tripKey, fit]);
+
+  // Fit bounds when user explicitly clicks "Fit trip"
+  useEffect(() => {
+    if (recenterTrigger > 0) {
+      userAdjustedRef.current = false;
+      fit();
+    }
+  }, [recenterTrigger, fit]);
+
   return null;
 }
 
@@ -53,13 +110,17 @@ export function LiveTripMap({
   onClose,
   onOpenOfficial,
 }: LiveTripMapProps) {
-  const vehicleIcon = (heading = 0) =>
+  const [recenterTrigger, setRecenterTrigger] = useState(0);
+  const dynamicAge = useRealtimeAge(progress.vehicle?.recordedAt) ?? progress.gpsAgeSeconds ?? 0;
+
+  const vehicleIcon = (heading = 0, isFallback = false) =>
     divIcon({
-      className: 'live-bus-marker-shell',
+      className: `live-bus-marker-shell ${isFallback ? 'bus-fallback' : ''}`,
       html: `<span class="live-bus-marker" style="transform:rotate(${heading}deg)">▲</span>`,
       iconSize: [34, 34],
       iconAnchor: [17, 17],
     });
+
   const visibleVehicles = progress.vehicle ? [progress.vehicle] : (progress.mapVehicles ?? []);
   const center = progress.boardingStop ?? progress.route?.polyline[0];
 
@@ -72,9 +133,19 @@ export function LiveTripMap({
         <strong>
           {routeName} · {translate(language, 'live')}
         </strong>
-        <button className="live-map-external-link" type="button" onClick={onOpenOfficial}>
-          {translate(language, 'openFullTransloc')}
-        </button>
+        <div className="live-map-header-actions">
+          <button
+            className="live-map-recenter-btn"
+            type="button"
+            onClick={() => setRecenterTrigger((c) => c + 1)}
+            title={translate(language, 'fitTrip')}
+          >
+            🎯 {translate(language, 'fitTrip')}
+          </button>
+          <button className="live-map-external-link" type="button" onClick={onOpenOfficial}>
+            {translate(language, 'openFullTransloc')}
+          </button>
+        </div>
       </header>
 
       <p className="live-map-explainer">{translate(language, 'liveTripExplanation')}</p>
@@ -103,34 +174,41 @@ export function LiveTripMap({
               pathOptions={{ color: '#123c31', weight: 7, opacity: 0.92 }}
             />
 
-            {visibleVehicles.map((vehicle) => (
-              <Marker
-                key={vehicle.vehicleId}
-                position={[vehicle.lat, vehicle.lon]}
-                icon={vehicleIcon(vehicle.bearing)}
-              >
-                <Popup>
-                  <strong>{vehicle.name ?? vehicle.vehicleId}</strong>
-                  <br />
-                  {routeName}
-                  <br />
-                  {translate(language, 'gpsUpdated', {
-                    seconds: Math.round(
-                      Math.max(
-                        vehicle.gpsAgeSeconds,
-                        (Date.now() - vehicle.recordedAt.getTime()) / 1000,
-                      ),
-                    ),
-                  })}
-                  {vehicle.isDelayed ? (
-                    <>
-                      <br />
-                      {translate(language, 'reportedDelayed')}
-                    </>
-                  ) : null}
-                </Popup>
-              </Marker>
-            ))}
+            {visibleVehicles.map((vehicle) => {
+              const isFallback =
+                Boolean(progress.isFallback) && vehicle.vehicleId === progress.vehicle?.vehicleId;
+              return (
+                <Marker
+                  key={vehicle.vehicleId}
+                  position={[vehicle.lat, vehicle.lon]}
+                  icon={vehicleIcon(vehicle.bearing, isFallback)}
+                >
+                  <Popup>
+                    <strong>{vehicle.name ?? vehicle.vehicleId}</strong>
+                    <br />
+                    {routeName}
+                    <br />
+                    {isFallback ? (
+                      <>
+                        <span className="live-fallback-warning">
+                          {translate(language, 'lastKnownPosition')}
+                        </span>
+                        <br />
+                        {translate(language, 'lastGpsAge', { seconds: dynamicAge })}
+                      </>
+                    ) : (
+                      translate(language, 'gpsUpdated', { seconds: dynamicAge })
+                    )}
+                    {vehicle.isDelayed ? (
+                      <>
+                        <br />
+                        {translate(language, 'reportedDelayed')}
+                      </>
+                    ) : null}
+                  </Popup>
+                </Marker>
+              );
+            })}
             {progress.boardingStop && (
               <CircleMarker
                 center={[progress.boardingStop.lat, progress.boardingStop.lon]}
@@ -171,7 +249,7 @@ export function LiveTripMap({
                 <Popup>{translate(language, 'classDestination')}</Popup>
               </CircleMarker>
             )}
-            <FitTrip progress={progress} />
+            <FitTripController progress={progress} recenterTrigger={recenterTrigger} />
           </MapContainer>
           <div className="live-trip-map-summary">
             {progress.distanceToBoardingMeters !== undefined ? (
@@ -182,9 +260,16 @@ export function LiveTripMap({
                     miles: ((progress.distanceToBoardingMeters ?? 0) / 1_609.344).toFixed(1),
                   })}
                 </strong>
-                <span>
-                  {translate(language, 'gpsUpdated', { seconds: progress.gpsAgeSeconds ?? 0 })}
-                </span>
+                {progress.isFallback ? (
+                  <span className="live-route-fallback-badge">
+                    {translate(language, 'lastKnownPosition')} ·{' '}
+                    {translate(language, 'lastGpsAge', { seconds: dynamicAge })}
+                  </span>
+                ) : (
+                  <span>
+                    {translate(language, 'gpsUpdated', { seconds: dynamicAge })}
+                  </span>
+                )}
                 {progress.reason === 'seam-crossing' && (
                   <span>{translate(language, 'liveLoopDistanceNote')}</span>
                 )}

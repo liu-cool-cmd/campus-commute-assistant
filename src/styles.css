@@ -872,82 +872,184 @@ h2 {
 }
 
 .live-route-overlay {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-width: 0;
-  gap: 5px;
+  gap: 8px;
   margin-top: 14px;
-  padding: 15px 17px;
+  padding: 16px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 20px;
   background: white;
   color: var(--ink);
   text-align: left;
+  box-shadow: 0 4px 16px rgba(18, 60, 49, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+.live-route-overlay:active {
+  transform: scale(0.99);
 }
 .live-route-overlay:disabled {
   cursor: default;
   opacity: 1;
 }
+
 .live-route-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
-.live-route-heading strong {
+.live-route-heading .live-route-name {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+  color: var(--forest);
+  font-weight: 700;
 }
-.live-route-heading span {
-  color: #2f7657;
-  font-size: 0.68rem;
+
+.live-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.live-route-diagram {
+.status-live {
+  background: #e7f5ee;
+  color: #1b7348;
+}
+.status-stale {
+  background: #fef4e6;
+  color: #b56214;
+}
+.status-muted {
+  background: #f0f2f1;
+  color: #687971;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #1ea05a;
+  animation: live-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes live-pulse {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  50% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 6px rgba(30, 160, 90, 0.6); }
+  100% { transform: scale(0.85); opacity: 0.7; }
+}
+
+.live-route-map-container {
   width: 100%;
-  height: 54px;
-  overflow: visible;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  margin: 4px auto 6px auto;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
-.live-route-diagram line {
-  stroke: #adc0b5;
-  stroke-width: 2.4;
-  stroke-linecap: round;
+
+.live-mini-map-shell {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
-.live-route-diagram circle {
-  fill: white;
-  stroke: #6e8479;
-  stroke-width: 1.7;
+
+.live-route-mini-map {
+  width: 100%;
+  height: 100%;
 }
-.live-route-diagram .boarding-marker {
-  fill: #fff7e9;
-  stroke: var(--clay);
-  stroke-width: 2.5;
+
+.live-mini-map-compass {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 400;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #55675d;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
 }
-.live-route-diagram text {
-  fill: var(--forest);
-  font-size: 8px;
-  font-weight: 800;
+
+.live-route-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-top: 2px;
 }
-.live-route-diagram .bus-glyph {
-  font-size: 10px;
+
+.live-route-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
+
 .live-route-summary {
   color: var(--forest);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 800;
 }
-.live-route-age,
+
+.live-route-separator {
+  color: #9ba8a1;
+  font-weight: 700;
+}
+
+.live-route-age {
+  color: #55675d;
+  font-size: 0.78rem;
+}
+
+.live-route-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: #7b8c82;
+  margin-top: 2px;
+}
+
+.live-route-arrow {
+  font-weight: bold;
+  color: var(--forest);
+  transition: transform 0.15s ease;
+}
+
+.live-route-overlay:hover .live-route-arrow {
+  transform: translateX(3px);
+}
+
 .live-route-unavailable {
   color: #6d7b74;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
+
 .live-route-stale,
 .live-route-ambiguous,
 .live-route-unavailable {
-  background: #f5f6f3;
+  background: #fbfcfb;
 }
 
 .live-map-page {
@@ -988,6 +1090,30 @@ h2 {
   font-size: 0.75rem;
   font-weight: 700;
   text-decoration: none;
+}
+.live-map-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.live-map-recenter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--forest);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.live-map-recenter-btn:active {
+  transform: scale(0.96);
 }
 .live-map-external-link {
   max-width: 112px;
@@ -1066,6 +1192,19 @@ h2 {
   color: white;
   box-shadow: 0 4px 12px rgba(18, 60, 49, 0.3);
   transform-origin: center;
+}
+.live-bus-marker-shell.bus-fallback .live-bus-marker {
+  background: #c57a26;
+  border: 3px dashed #ffffff;
+  box-shadow: 0 0 0 2px #c57a26, 0 4px 12px rgba(197, 122, 38, 0.4);
+}
+.live-route-fallback-badge {
+  color: #b56214;
+  font-weight: 700;
+}
+.live-fallback-warning {
+  color: #b56214;
+  font-weight: 700;
 }
 .live-trip-unavailable {
   position: static;

@@ -1,5 +1,5 @@
 import { divIcon, latLngBounds } from 'leaflet';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import {
   CircleMarker,
   MapContainer,
@@ -10,7 +10,7 @@ import {
   useMap,
 } from 'react-leaflet';
 import type { LiveTripProgress } from '../core/realtime/routeProgress';
-import type { AppLanguage, Location } from '../core/types';
+import type { AppLanguage, Coordinates, Location } from '../core/types';
 import { translate } from '../i18n';
 
 interface LiveTripMapProps {
@@ -29,13 +29,18 @@ const points = (path: { lat: number; lon: number }[]): [number, number][] =>
 function FitTrip({ progress }: Pick<LiveTripMapProps, 'progress'>) {
   const map = useMap();
   useEffect(() => {
-    if (!progress.vehicle || !progress.boardingStop || !progress.arrivalStop) return;
-    const locations = [progress.vehicle, progress.boardingStop, progress.arrivalStop];
+    const locations: Coordinates[] = [
+      progress.boardingStop,
+      progress.arrivalStop,
+      ...(progress.vehicle ? [progress.vehicle] : (progress.mapVehicles ?? [])),
+    ].filter((point) => point !== undefined);
+    if (!locations.length) locations.push(...(progress.route?.polyline ?? []));
+    if (!locations.length) return;
     map.fitBounds(latLngBounds(locations.map((location) => [location.lat, location.lon])), {
       padding: [34, 34],
       maxZoom: 16,
     });
-  }, [map, progress.arrivalStop, progress.boardingStop, progress.vehicle]);
+  }, [map, progress]);
   return null;
 }
 
@@ -48,16 +53,15 @@ export function LiveTripMap({
   onClose,
   onOpenOfficial,
 }: LiveTripMapProps) {
-  const vehicleIcon = useMemo(
-    () =>
-      divIcon({
-        className: 'live-bus-marker-shell',
-        html: `<span class="live-bus-marker" style="transform:rotate(${progress.vehicle?.bearing ?? 0}deg)">▲</span>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
-      }),
-    [progress.vehicle?.bearing],
-  );
+  const vehicleIcon = (heading = 0) =>
+    divIcon({
+      className: 'live-bus-marker-shell',
+      html: `<span class="live-bus-marker" style="transform:rotate(${heading}deg)">▲</span>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+    });
+  const visibleVehicles = progress.vehicle ? [progress.vehicle] : (progress.mapVehicles ?? []);
+  const center = progress.boardingStop ?? progress.route?.polyline[0];
 
   return (
     <section className="live-map-page live-trip-page">
@@ -75,13 +79,9 @@ export function LiveTripMap({
 
       <p className="live-map-explainer">{translate(language, 'liveTripExplanation')}</p>
 
-      {progress.status === 'live' && progress.route && progress.vehicle ? (
+      {progress.route && center ? (
         <div className="live-trip-map-shell">
-          <MapContainer
-            className="live-trip-map"
-            center={[progress.vehicle.lat, progress.vehicle.lon]}
-            zoom={15}
-          >
+          <MapContainer className="live-trip-map" center={[center.lat, center.lon]} zoom={15}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -103,21 +103,34 @@ export function LiveTripMap({
               pathOptions={{ color: '#123c31', weight: 7, opacity: 0.92 }}
             />
 
-            <Marker position={[progress.vehicle.lat, progress.vehicle.lon]} icon={vehicleIcon}>
-              <Popup>
-                <strong>{progress.vehicle.name ?? progress.vehicle.vehicleId}</strong>
-                <br />
-                {routeName}
-                <br />
-                {translate(language, 'gpsUpdated', { seconds: progress.gpsAgeSeconds ?? 0 })}
-                {progress.vehicle.isDelayed ? (
-                  <>
-                    <br />
-                    {translate(language, 'reportedDelayed')}
-                  </>
-                ) : null}
-              </Popup>
-            </Marker>
+            {visibleVehicles.map((vehicle) => (
+              <Marker
+                key={vehicle.vehicleId}
+                position={[vehicle.lat, vehicle.lon]}
+                icon={vehicleIcon(vehicle.bearing)}
+              >
+                <Popup>
+                  <strong>{vehicle.name ?? vehicle.vehicleId}</strong>
+                  <br />
+                  {routeName}
+                  <br />
+                  {translate(language, 'gpsUpdated', {
+                    seconds: Math.round(
+                      Math.max(
+                        vehicle.gpsAgeSeconds,
+                        (Date.now() - vehicle.recordedAt.getTime()) / 1000,
+                      ),
+                    ),
+                  })}
+                  {vehicle.isDelayed ? (
+                    <>
+                      <br />
+                      {translate(language, 'reportedDelayed')}
+                    </>
+                  ) : null}
+                </Popup>
+              </Marker>
+            ))}
             {progress.boardingStop && (
               <CircleMarker
                 center={[progress.boardingStop.lat, progress.boardingStop.lon]}
@@ -161,15 +174,29 @@ export function LiveTripMap({
             <FitTrip progress={progress} />
           </MapContainer>
           <div className="live-trip-map-summary">
-            <strong>
-              {translate(language, 'liveDistanceSummary', {
-                stops: progress.stopsAway ?? 0,
-                miles: ((progress.distanceToBoardingMeters ?? 0) / 1_609.344).toFixed(1),
-              })}
-            </strong>
-            <span>
-              {translate(language, 'gpsUpdated', { seconds: progress.gpsAgeSeconds ?? 0 })}
-            </span>
+            {progress.distanceToBoardingMeters !== undefined ? (
+              <>
+                <strong>
+                  {translate(language, 'liveDistanceSummary', {
+                    stops: progress.stopsAway ?? 0,
+                    miles: ((progress.distanceToBoardingMeters ?? 0) / 1_609.344).toFixed(1),
+                  })}
+                </strong>
+                <span>
+                  {translate(language, 'gpsUpdated', { seconds: progress.gpsAgeSeconds ?? 0 })}
+                </span>
+                {progress.reason === 'seam-crossing' && (
+                  <span>{translate(language, 'liveLoopDistanceNote')}</span>
+                )}
+              </>
+            ) : (
+              <span>
+                {translate(
+                  language,
+                  visibleVehicles.length ? 'liveGpsOnly' : 'liveLocationUnavailable',
+                )}
+              </span>
+            )}
           </div>
         </div>
       ) : (

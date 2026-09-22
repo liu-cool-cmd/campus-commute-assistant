@@ -15,7 +15,6 @@ const miles = (meters: number) => (meters / 1_609.344).toFixed(1);
 export function LiveRouteOverlay({ language, routeName, progress, onOpen }: LiveRouteOverlayProps) {
   const markers = useMemo(() => {
     if (
-      progress.status !== 'live' ||
       progress.distanceToBoardingMeters === undefined ||
       progress.distanceBoardingToArrivalMeters === undefined
     ) {
@@ -43,13 +42,13 @@ export function LiveRouteOverlay({ language, routeName, progress, onOpen }: Live
       className={`live-route-overlay live-route-${progress.status}`}
       type="button"
       onClick={onOpen}
-      disabled={progress.status !== 'live'}
+      disabled={!progress.route}
     >
       <span className="live-route-heading">
         <strong>{routeName}</strong>
         <span>{translate(language, 'live')}</span>
       </span>
-      {progress.status === 'live' && progress.distanceToBoardingMeters !== undefined ? (
+      {progress.distanceToBoardingMeters !== undefined ? (
         <>
           <svg className="live-route-diagram" viewBox="0 0 100 30" role="img">
             <title>{translate(language, 'liveRouteDiagram')}</title>
@@ -82,9 +81,17 @@ export function LiveRouteOverlay({ language, routeName, progress, onOpen }: Live
           <span className="live-route-age">
             {translate(language, 'gpsUpdated', { seconds: progress.gpsAgeSeconds ?? 0 })}
           </span>
+          {progress.reason === 'seam-crossing' && (
+            <span className="live-route-unavailable">
+              {translate(language, 'liveLoopDistanceNote')}
+            </span>
+          )}
         </>
       ) : (
-        <span className="live-route-unavailable">{translate(language, statusKey)}</span>
+        <span className="live-route-unavailable">
+          {translate(language, progress.mapVehicles?.length ? 'liveGpsOnly' : statusKey)}
+          {progress.route && <> · {translate(language, 'viewBusesLive')}</>}
+        </span>
       )}
     </button>
   );

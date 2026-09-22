@@ -1,6 +1,7 @@
 import type { CampusAdapter } from '../../core/types';
 import { dukeBuildings } from './buildings';
 import { DukeRealtimeProvider } from './realtime';
+import { applyDukePublishedSchedules } from './publishedSchedules';
 import { migrateDukeOfficialSelection, supplementDukeOfficialSchedules } from './officialSchedule';
 import {
   dukeRouteFamilies,
@@ -26,6 +27,6 @@ export const dukeCampus: CampusAdapter = {
   migrateSettings: migrateDukeRouteFamilySettings,
   migrateHomeTransit: migrateDukeHomeTransit,
   resolveTransitSelections: resolveDukeTransitSelections,
-  supplementGtfs: supplementDukeOfficialSchedules,
+  supplementGtfs: (feed) => applyDukePublishedSchedules(supplementDukeOfficialSchedules(feed)),
   migrateTransitSelection: migrateDukeOfficialSelection,
 };

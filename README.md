@@ -264,6 +264,9 @@ an Android debug APK build.
 - Later: saved route/stop presets, bike timing, more campus adapters, and accessible commute
   preferences.
 
+The [September 2026 data audit](docs/DUKE-DATA-AUDIT-2026-09-21.md) documents repaired C1, SWS,
+PR1, H1/H2 and LNC schedules, remaining source conflicts, and GPS-only map fallback behavior.
+
 ## Privacy
 
 Schedules, language, stop bindings, and saved Home coordinates remain on the device. The app sends

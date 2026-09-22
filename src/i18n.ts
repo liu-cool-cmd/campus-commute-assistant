@@ -55,6 +55,10 @@ const en = {
   liveDistanceSummary: '{{stops}} stops · {{miles}} mi away',
   gpsUpdated: 'GPS updated {{seconds}}s ago',
   liveLocationUnavailable: 'Live location unavailable',
+  liveLoopDistanceNote:
+    'Along the loop to your stop, assuming this bus continues past the route start. Next service is unconfirmed.',
+  liveGpsOnly:
+    'Showing current bus locations. The next bus and distance to your stop cannot yet be confirmed.',
   liveLocationStale: 'GPS location may be stale',
   liveLocationAmbiguous: 'Live vehicle position is ambiguous',
   openFullTransloc: 'Open full TransLoc map',
@@ -242,6 +246,8 @@ const zh: Record<TranslationKey, string> = {
   liveDistanceSummary: '{{stops}} 站 · 距上车站 {{miles}} 英里',
   gpsUpdated: 'GPS 更新于 {{seconds}} 秒前',
   liveLocationUnavailable: '实时位置暂不可用',
+  liveLoopDistanceNote: '距离按沿环线继续行驶计算，需经过线路起点；是否继续运营至本站尚未确认。',
+  liveGpsOnly: '当前显示公交实际位置，暂时无法确认下一班车及距上车站的线路距离。',
   liveLocationStale: '公交 GPS 位置可能已过期',
   liveLocationAmbiguous: '无法可靠判断公交在线路上的位置',
   openFullTransloc: '打开完整 TransLoc 地图',

@@ -60,6 +60,10 @@ const vehicles: TranslocVehicleResponse[] = [
 ];
 
 describe('Duke TransLoc adapter', () => {
+  it('does not present an unknown GPS age as fresh', () => {
+    const snapshot = makeTranslocSnapshot(routes, [{ ...vehicles[0]!, Seconds: Number.NaN }]);
+    expect(snapshot.vehicles).toEqual([]);
+  });
   it('maps vehicles only through numeric RouteID to the route GtfsId', () => {
     const receivedAt = new Date('2026-08-28T12:00:00Z');
     const snapshot = makeTranslocSnapshot(routes, vehicles, receivedAt);

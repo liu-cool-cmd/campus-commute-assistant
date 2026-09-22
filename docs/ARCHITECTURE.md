@@ -39,8 +39,9 @@ bindings are stored separately and survive a calendar replacement.
 
 Campus adapters may apply a versioned, bundled supplement after parsing the cached raw feed. A
 supplement must use a cited official source, namespace every synthetic ID, and leave the raw archive
-unchanged. It should activate only while the corresponding raw route has no trips, so an upstream
-GTFS repair automatically takes precedence.
+unchanged. Duke also replaces its audited relative-time-only export with published Fall 2026 tables;
+real absolute-time upstream schedules take precedence. See [the data audit](DUKE-DATA-AUDIT-2026-09-21.md)
+for coverage, reviewed mappings, expiry and source inconsistencies.
 
 When an official timetable publishes only timing points, a campus supplement may reuse a verified
 first-party stop order and interpolate within those anchored segments. Interpolated `StopTime`
@@ -129,6 +130,11 @@ allow one validated stop-order seam wrap and use directed cyclic distance rather
 or shortest-path distance. Repeated/self-crossing segments require a unique projection or heading
 disambiguation. A vehicle older than 90 seconds, off-route, directionally contradictory, or only
 reachable through an unconfirmed next lap is not presented as the next bus.
+Fresh GPS and the selected route remain available to the map even when progress is ambiguous.
+The map then labels these as vehicle locations, with no next-bus claim or fabricated route distance.
+When projection is reliable but reaching the boarding stop requires crossing the loop seam, the
+home overlay and map share the computed directed distance and paths, with an explicit conditional
+continuation note. Status remains ambiguous: the distance does not confirm another operating lap.
 
 Duke's `duke-llccw` family is a UI/storage compatibility layer, not a feed rewrite. The existing
 matcher runs independently with `TL-13` and `TL-19`, and normal service calendars/windows determine

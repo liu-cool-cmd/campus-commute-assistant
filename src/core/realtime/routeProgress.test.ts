@@ -165,6 +165,20 @@ describe('route progress', () => {
     });
     expect(result.status).toBe('ambiguous');
     expect(result.reason).toBe('seam-crossing');
+    expect(result.distanceToBoardingMeters).toBeGreaterThan(900);
+    expect(result.distanceToBoardingMeters).toBeLessThan(1100);
+    expect(result.vehicle?.vehicleId).toBe('bus');
+    expect(result.vehicleToBoardingPath.length).toBeGreaterThan(2);
+    expect(result.stopsAway).toBe(1);
+    const stale = calculateLiveTripProgress({
+      snapshot: snapshot([{ ...bus, gpsAgeSeconds: 120 }], loop),
+      routeId: 'loop',
+      boardingStopId: 'board',
+      arrivalStopId: 'arrive',
+      now: new Date('2026-08-28T12:00:00Z'),
+    });
+    expect(stale.status).toBe('stale');
+    expect(stale.distanceToBoardingMeters).toBeUndefined();
   });
 
   it('uses heading only to disambiguate overlapping route segments', () => {
@@ -173,5 +187,35 @@ describe('route progress', () => {
     expect(
       projectPointToRoute(at(-78.945), line, { isLoop: true, heading: 90 })?.segmentIndex,
     ).toBe(0);
+  });
+
+  it('treats adjacent segments on one direction as one heading hypothesis', () => {
+    // GPS is slightly closer to the westbound side, but heads east near an eastbound vertex.
+    // Both adjacent eastbound segments must count as a single alternative to the westbound one.
+    const line = [
+      at(-78.96, 36.00002),
+      at(-78.95, 36.00002),
+      at(-78.94, 36.00002),
+      at(-78.94),
+      at(-78.95),
+      at(-78.96),
+    ];
+    const projection = projectPointToRoute(at(-78.95001), line, { isLoop: true, heading: 90 });
+    expect(projection).toBeDefined();
+    expect(projection!.segmentBearing).toBeCloseTo(90, 0);
+  });
+
+  it('keeps fresh GPS and route geometry available to the map when selected stops are missing', () => {
+    const result = calculateLiveTripProgress({
+      snapshot: snapshot([vehicle('fresh', -78.945), vehicle('old', -78.95, 120)]),
+      routeId: 'route-a',
+      boardingStopId: 'missing',
+      arrivalStopId: 'arrive',
+      now: new Date('2026-08-28T12:00:00Z'),
+    });
+    expect(result.status).toBe('unavailable');
+    expect(result.mapVehicles?.map((bus) => bus.vehicleId)).toEqual(['fresh']);
+    expect(result.arrivalStop?.id).toBe('arrive');
+    expect(result.distanceToBoardingMeters).toBeUndefined();
   });
 });

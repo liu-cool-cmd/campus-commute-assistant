@@ -29,6 +29,8 @@ export interface LiveTripStopProgress {
 }
 
 export interface LiveTripProgress {
+  /** Fresh, on-route GPS remains viewable even when next-bus progress is ambiguous. */
+  mapVehicles?: VehiclePosition[];
   status: 'live' | 'stale' | 'unavailable' | 'ambiguous';
   reason?:
     | 'route-not-found'
@@ -184,11 +186,21 @@ export function projectPointToRoute(
       headingDifference(options.heading!, right.segmentBearing),
   );
   const winner = headingCandidates[0]!;
-  const runnerUp = headingCandidates[1]!;
+  // Adjacent segments on the same branch are one projection hypothesis, not competing buses.
+  const runnerUp = headingCandidates.find((candidate) => {
+    const separation = Math.abs(
+      candidate.distanceAlongRouteMeters - winner.distanceAlongRouteMeters,
+    );
+    return (
+      (prepared.isLoop ? Math.min(separation, prepared.length - separation) : separation) >=
+      PROJECTION_SEPARATION_METERS
+    );
+  });
   return headingDifference(options.heading, winner.segmentBearing) <= 70 &&
-    headingDifference(options.heading, runnerUp.segmentBearing) -
-      headingDifference(options.heading, winner.segmentBearing) >=
-      25
+    (!runnerUp ||
+      headingDifference(options.heading, runnerUp.segmentBearing) -
+        headingDifference(options.heading, winner.segmentBearing) >=
+        25)
     ? winner
     : undefined;
 }
@@ -375,14 +387,37 @@ function unavailable(
   };
 }
 
-export function calculateLiveTripProgress(options: {
+interface LiveTripOptions {
   snapshot: RealtimeSnapshot;
   routeId: string;
   boardingStopId: string;
   arrivalStopId: string;
   now?: Date;
   staleAfterSeconds?: number;
-}): LiveTripProgress {
+}
+
+export function calculateLiveTripProgress(options: LiveTripOptions): LiveTripProgress {
+  const result = calculateProgress(options);
+  const route = result.route;
+  if (!route) return result;
+  const now = options.now ?? new Date();
+  return {
+    ...result,
+    boardingStop:
+      result.boardingStop ?? route.stops.find((stop) => stop.id === options.boardingStopId),
+    arrivalStop:
+      result.arrivalStop ?? route.stops.find((stop) => stop.id === options.arrivalStopId),
+    mapVehicles: options.snapshot.vehicles.filter(
+      (vehicle) =>
+        vehicle.routeId === route.routeId &&
+        vehicle.isOnRoute &&
+        Math.max(vehicle.gpsAgeSeconds, (now.getTime() - vehicle.recordedAt.getTime()) / 1000) <=
+          (options.staleAfterSeconds ?? 90),
+    ),
+  };
+}
+
+function calculateProgress(options: LiveTripOptions): LiveTripProgress {
   const { snapshot, routeId, boardingStopId, arrivalStopId } = options;
   const now = options.now ?? new Date();
   const staleAfterSeconds = options.staleAfterSeconds ?? 90;
@@ -468,9 +503,9 @@ export function calculateLiveTripProgress(options: {
     );
   }
 
-  const withoutSeam = candidates.filter((candidate) => !candidate.crossesSeam);
-  if (withoutSeam.length === 0) return unavailable('ambiguous', 'seam-crossing', route);
-  const next = withoutSeam.sort(
+  // Geometry can give a directed distance across the seam even when continued service on
+  // the next lap is unconfirmed. Preserve that distinction instead of discarding the distance.
+  const next = candidates.sort(
     (left, right) => left.distanceToBoardingMeters - right.distanceToBoardingMeters,
   )[0]!;
   const distanceBoardingToArrivalMeters = route.isLoop
@@ -495,8 +530,21 @@ export function calculateLiveTripProgress(options: {
   const totalDisplayDistance = next.distanceToBoardingMeters + distanceBoardingToArrivalMeters;
   const displayStops = orderedStops
     .map((stop) => ({ stop, projection: projectionsByStop.get(stop.id)! }))
-    .map(({ stop, projection }) => ({ stop, distance: distanceFromVehicle(projection) }))
-    .filter(({ distance }) => distance > 1 && distance <= totalDisplayDistance + 1)
+    .flatMap(({ stop, projection }) => {
+      if (stop.id === boardingStopId) return [{ stop, distance: next.distanceToBoardingMeters }];
+      if (stop.id === arrivalStopId) return [{ stop, distance: totalDisplayDistance }];
+      const distance = distanceFromVehicle(projection);
+      return route.isLoop
+        ? [
+            { stop, distance },
+            { stop, distance: distance + prepared.length },
+          ]
+        : [{ stop, distance }];
+    })
+    .filter(
+      ({ stop, distance }) =>
+        (distance > 1 || stop.id === boardingStopId) && distance <= totalDisplayDistance + 1,
+    )
     .sort((left, right) => left.distance - right.distance)
     .map(({ stop, distance }) => ({
       stop,
@@ -508,12 +556,14 @@ export function calculateLiveTripProgress(options: {
             ? ('arrival' as const)
             : ('intermediate' as const),
     }));
-  const stopsAway = displayStops.filter(
-    (stop) => stop.distanceFromVehicleMeters <= next.distanceToBoardingMeters + 1,
-  ).length;
+  const stopsAway = orderedStops.filter((stop) => {
+    const distance = distanceFromVehicle(projectionsByStop.get(stop.id)!);
+    return distance > 1 && distance <= next.distanceToBoardingMeters + 1;
+  }).length;
 
   return {
-    status: 'live',
+    status: next.crossesSeam ? 'ambiguous' : 'live',
+    reason: next.crossesSeam ? 'seam-crossing' : undefined,
     route,
     vehicle: next.vehicle,
     boardingStop,

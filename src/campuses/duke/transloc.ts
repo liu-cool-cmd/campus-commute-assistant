@@ -130,13 +130,15 @@ export function parseTranslocVehicles(
     const routeId = routeIdByProviderId.get(providerRouteId);
     if (
       !routeId ||
+      !Number.isFinite(raw.Seconds) ||
+      raw.Seconds < 0 ||
       !Number.isFinite(raw.VehicleID) ||
       !Number.isFinite(raw.Latitude) ||
       !Number.isFinite(raw.Longitude)
     ) {
       return [];
     }
-    const gpsAgeSeconds = Math.max(0, Number.isFinite(raw.Seconds) ? raw.Seconds : 0);
+    const gpsAgeSeconds = raw.Seconds;
     return [
       {
         vehicleId: String(raw.VehicleID),

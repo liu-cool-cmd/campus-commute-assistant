@@ -173,4 +173,73 @@ describe('LiveRouteOverlay', () => {
     expect(html).toContain('STALE GPS');
     expect(html).toContain('status-stale');
   });
+
+  it('labels a loop-seam continuation as live instead of unavailable', () => {
+    const seamProgress: LiveTripProgress = {
+      ...baseProgress,
+      status: 'ambiguous',
+      reason: 'seam-crossing',
+      route: { ...baseProgress.route!, isLoop: true },
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(LiveRouteOverlay, {
+        language: 'en',
+        routeName: 'LLCCW',
+        progress: seamProgress,
+        onOpen: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Live · past route start');
+    expect(html).toContain('status-seam');
+    expect(html).not.toContain('Live location unavailable');
+    // The directed loop distance stays valid, together with the continuation caveat.
+    expect(html).toContain('2 stops · 0.3 mi away');
+    expect(html).toContain('assuming this bus continues past the route start');
+  });
+
+  it('reports an ambiguous projection separately from an unavailable position', () => {
+    const ambiguousProgress: LiveTripProgress = {
+      ...baseProgress,
+      status: 'ambiguous',
+      reason: 'ambiguous-projection',
+      distanceToBoardingMeters: undefined,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(LiveRouteOverlay, {
+        language: 'en',
+        routeName: 'C1',
+        progress: ambiguousProgress,
+        onOpen: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Live vehicle position is ambiguous');
+    expect(html).toContain('status-muted');
+    expect(html).not.toContain('Live location unavailable');
+  });
+
+  it('keeps the unavailable label when there is no usable position at all', () => {
+    const unavailableProgress: LiveTripProgress = {
+      ...baseProgress,
+      status: 'unavailable',
+      reason: 'no-active-vehicle',
+      vehicle: undefined,
+      distanceToBoardingMeters: undefined,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(LiveRouteOverlay, {
+        language: 'en',
+        routeName: 'C1',
+        progress: unavailableProgress,
+        onOpen: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Live location unavailable');
+    expect(html).toContain('status-muted');
+  });
 });

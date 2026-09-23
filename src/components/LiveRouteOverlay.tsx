@@ -75,6 +75,9 @@ export function LiveRouteOverlay({ language, routeName, progress, onOpen }: Live
   const isStale = progress.status === 'stale';
   const isLive = progress.status === 'live';
   const isFallback = Boolean(progress.isFallback);
+  // The vehicle position itself is reliable here; only continued service past the route start
+  // is unconfirmed, so this must not be presented as "live location unavailable".
+  const isSeamCrossing = progress.status === 'ambiguous' && progress.reason === 'seam-crossing';
 
   const statusKey = isStale
     ? 'liveLocationStale'
@@ -103,7 +106,9 @@ export function LiveRouteOverlay({ language, routeName, progress, onOpen }: Live
               ? 'status-live'
               : isFallback || isStale
                 ? 'status-stale'
-                : 'status-muted'
+                : isSeamCrossing
+                  ? 'status-seam'
+                  : 'status-muted'
           }`}
         >
           {isLive && !isFallback && <span className="live-dot" />}
@@ -113,7 +118,11 @@ export function LiveRouteOverlay({ language, routeName, progress, onOpen }: Live
               ? translate(language, 'live')
               : isStale
                 ? 'STALE GPS'
-                : translate(language, 'liveLocationUnavailable')}
+                : progress.status === 'ambiguous'
+                  ? isSeamCrossing
+                    ? translate(language, 'liveLoopContinue')
+                    : translate(language, 'liveLocationAmbiguous')
+                  : translate(language, 'liveLocationUnavailable')}
         </span>
       </div>
 

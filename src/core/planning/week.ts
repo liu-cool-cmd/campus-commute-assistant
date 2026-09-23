@@ -38,16 +38,22 @@ export function getUpcomingWindowEvents(events: ClassEvent[], now: Date, days = 
     .sort((left, right) => left.startTime.getTime() - right.startTime.getTime());
 }
 
+interface EventSelectionResolution {
+  /** True when the class has a saved arrival stop at all. */
+  bound: boolean;
+  selections: TransitSelection[];
+}
+
 function selectionsForEvent(
   event: ClassEvent,
   feed: GtfsFeed,
   settings: UserSettings,
   buildings: CampusBuilding[],
   resolveTransitSelections?: WeekPlanOptions['resolveTransitSelections'],
-): TransitSelection[] {
+): EventSelectionResolution {
   const routeId = settings.homeTransit?.routeId;
   const originStopId = settings.homeTransit?.originStopId;
-  if (!routeId || !originStopId) return [];
+  if (!routeId || !originStopId) return { bound: false, selections: [] };
 
   const key = settings.groupClassStopsByBuilding
     ? buildingBindingKey(event, buildings)
@@ -55,17 +61,18 @@ function selectionsForEvent(
   const destinationStopId = settings.groupClassStopsByBuilding
     ? settings.buildingStopBindings?.[key]
     : settings.classStopBindings?.[key];
-  if (!destinationStopId) return [];
+  if (!destinationStopId) return { bound: false, selections: [] };
 
   const base = { routeId, originStopId, destinationStopId };
   const candidates = resolveTransitSelections
     ? resolveTransitSelections(base, feed, event.startTime, settings.homeTransit?.routeFamilyId)
     : [base];
-  return candidates.filter((selection) =>
+  const selections = candidates.filter((selection) =>
     getDownstreamStops(feed, selection.routeId, selection.originStopId).some(
       (stop) => stop.id === selection.destinationStopId,
     ),
   );
+  return { bound: true, selections };
 }
 
 export function buildWeekPlans({
@@ -84,16 +91,21 @@ export function buildWeekPlans({
       return { classEvent, status: 'home-transit-missing' };
     }
 
-    const transitSelections = selectionsForEvent(
+    const resolution = selectionsForEvent(
       classEvent,
       feed,
       settings,
       buildings,
       resolveTransitSelections,
     );
-    if (transitSelections.length === 0) return { classEvent, status: 'arrival-stop-missing' };
+    // A missing binding and "bound but no service matches this class time" are different
+    // problems: only the first should ask the user to choose an arrival stop.
+    if (!resolution.bound) return { classEvent, status: 'arrival-stop-missing' };
+    if (resolution.selections.length === 0) {
+      return { classEvent, status: 'no-matching-departure' };
+    }
 
-    const recommendations = transitSelections.flatMap((transitSelection) => {
+    const recommendations = resolution.selections.flatMap((transitSelection) => {
       const originStop = feed.stops.find((stop) => stop.id === transitSelection.originStopId);
       const destinationStop = feed.stops.find(
         (stop) => stop.id === transitSelection.destinationStopId,

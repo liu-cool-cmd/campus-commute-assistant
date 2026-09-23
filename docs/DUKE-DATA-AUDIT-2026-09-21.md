@@ -52,7 +52,7 @@ The routing engine, ETA policy and notification calculation are unchanged.
 Heading comparison previously counted adjacent polyline segments on the same branch as separate
 competing projections. This incorrectly rejected the current PR1 vehicle and two C1 vehicles in the
 captured sample. Projection hypotheses are now compared by distinct along-route positions, including
-cyclic separation at the seam. The existing ambiguity, direction and 90-second age checks remain.
+cyclic separation at the seam. The existing ambiguity, direction and 60-second age checks remain.
 
 The map previously required `status === live` and the home button was disabled otherwise. That hid
 valid GPS whenever the next-bus computation could not confirm a seam crossing or a selected stop.

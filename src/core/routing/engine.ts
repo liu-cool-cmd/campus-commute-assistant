@@ -7,6 +7,45 @@ import { addServiceDays, dateInTimezone, serviceTimeToDate } from '../gtfs/time'
 const MINUTE = 60_000;
 
 export function getCommuteRecommendations(options: RoutingOptions): CommuteRecommendation[] {
+  const effectiveDeadline = new Date(
+    options.request.arrivalDeadline.getTime() - options.request.bufferMinutes * MINUTE,
+  );
+  return collectCommuteRecommendations(options, effectiveDeadline).sort(
+    (left, right) => right.leaveAt.getTime() - left.leaveAt.getTime(),
+  );
+}
+
+export interface FollowingDeparturesOptions {
+  /** Only departures strictly after this instant are considered. */
+  afterDeparture: Date;
+  count: number;
+}
+
+/**
+ * The next departures at the boarding stop, ignoring the arrival deadline. These can arrive after
+ * the class bell, so callers must label them (see `arrivalStatus`) instead of treating them as safe.
+ */
+export function getFollowingDepartures(
+  options: RoutingOptions,
+  { afterDeparture, count }: FollowingDeparturesOptions,
+): CommuteRecommendation[] {
+  if (count <= 0) return [];
+  const after = afterDeparture.getTime();
+  return collectCommuteRecommendations(options)
+    .filter((recommendation) => recommendation.departureTime.getTime() > after)
+    .sort((left, right) => left.departureTime.getTime() - right.departureTime.getTime())
+    .slice(0, count);
+}
+
+/**
+ * Enumerates feasible departures for one resolved selection. When `latestArrival` is provided the
+ * result is limited to trips arriving by that instant, which is the strict, buffer-aware behaviour
+ * behind the recommendation. Omitting it enumerates every feasible departure.
+ */
+function collectCommuteRecommendations(
+  options: RoutingOptions,
+  latestArrival?: Date,
+): CommuteRecommendation[] {
   const {
     feed,
     request,
@@ -15,7 +54,9 @@ export function getCommuteRecommendations(options: RoutingOptions): CommuteRecom
     walkingSpeedMetersPerSecond,
     walkingCorrectionFactor,
   } = options;
-  const effectiveDeadline = new Date(
+  // Service dates stay anchored on the buffered deadline even when the arrival filter is relaxed,
+  // so following departures remain on the same service day as the recommendation.
+  const serviceAnchor = new Date(
     request.arrivalDeadline.getTime() - request.bufferMinutes * MINUTE,
   );
   const stopById = new Map(feed.stops.map((stop) => [stop.id, stop]));
@@ -39,7 +80,7 @@ export function getCommuteRecommendations(options: RoutingOptions): CommuteRecom
     frequenciesByTrip.set(frequency.tripId, tripFrequencies);
   }
 
-  const localDeadlineDate = dateInTimezone(effectiveDeadline, serviceTimezone);
+  const localDeadlineDate = dateInTimezone(serviceAnchor, serviceTimezone);
   const serviceDates = [localDeadlineDate, addServiceDays(localDeadlineDate, -1)];
   const results: CommuteRecommendation[] = [];
 
@@ -92,7 +133,8 @@ export function getCommuteRecommendations(options: RoutingOptions): CommuteRecom
             const arrivalTime = new Date(
               stopArrivalTime.getTime() + destinationWalkingMinutes * MINUTE,
             );
-            if (arrivalTime > effectiveDeadline || departureTime >= stopArrivalTime) continue;
+            if (latestArrival && arrivalTime > latestArrival) continue;
+            if (departureTime >= stopArrivalTime) continue;
 
             const leaveAt = new Date(
               departureTime.getTime() - (originWalkingMinutes + waitingMinutes) * MINUTE,
@@ -139,7 +181,7 @@ export function getCommuteRecommendations(options: RoutingOptions): CommuteRecom
     unique.set(key, result);
   }
 
-  return [...unique.values()].sort((a, b) => b.leaveAt.getTime() - a.leaveAt.getTime());
+  return [...unique.values()];
 }
 
 export function recommendCommute(options: RoutingOptions): CommuteRecommendation | undefined {

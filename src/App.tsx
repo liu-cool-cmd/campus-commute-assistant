@@ -1,27 +1,62 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultCampus } from './campuses';
+import {
+  buildDukeAlertCatalog,
+  DUKE_EMPTY_ALERT_CATALOG,
+  DukeParkingRssSource,
+  DukeTranslocAlertSource,
+} from './campuses/duke/alerts';
+import { AlertsPanel, AlertsSummary } from './components/AlertsPanel';
+import { alertKindLabel } from './components/alertLabels';
 import { ImportClasses } from './components/ImportClasses';
 import { LiveRouteOverlay } from './components/LiveRouteOverlay';
 import { LiveTripMap } from './components/LiveTripMap';
 import { LiveTransitMap } from './components/LiveTransitMap';
 import { RecommendationCard } from './components/RecommendationCard';
-import { SettingsPanel } from './components/SettingsPanel';
-import { ClassDestinationField } from './components/TransitPreferences';
+import { SettingsPanel, type SettingsFocusSection } from './components/SettingsPanel';
+import { settingsScrollTop } from './components/settingsScroll';
 import { WeekPlan } from './components/WeekPlan';
 import { buildingBindingKey, classBindingKey } from './core/calendar/bindings';
+import {
+  loadAlertNotificationState,
+  loadCachedAlerts,
+  saveAlertNotificationState,
+  saveCachedAlerts,
+} from './core/alerts/cache';
+import { selectAlertsToNotify } from './core/alerts/dedupe';
+import type { AlertNotificationState } from './core/alerts/dedupe';
+import { alertKindForRoute } from './core/alerts/labels';
+import {
+  alertMatchesContext,
+  mergeAlertNotificationContext,
+  selectNotifiableAlerts,
+} from './core/alerts/notification';
+import { sortAlertsForDisplay, withActiveStatus } from './core/alerts/types';
+import type { TransitAlert } from './core/alerts/types';
+import type { AlertNotificationScope } from './core/alerts/types';
 import { loadGtfs, type GtfsSnapshot } from './core/gtfs/client';
 import { getDownstreamStops } from './core/gtfs/selection';
 import { findBuilding } from './core/locations/geo';
-import { scheduleCommuteNotification } from './core/notifications/local';
+import {
+  scheduleAlertNotifications,
+  scheduleCommuteNotification,
+} from './core/notifications/local';
 import { buildWeekPlans } from './core/planning/week';
 import { isRealtimeSnapshotIdentical, RealtimeSnapshotCache } from './core/realtime/realtimeCache';
 import { calculateLiveTripProgress, type LiveTripProgress } from './core/realtime/routeProgress';
 import { applyLiveTripFallback } from './core/realtime/routeProgressFallback';
-import { getCommuteRecommendations } from './core/routing/engine';
+import { getCommuteRecommendations, getFollowingDepartures } from './core/routing/engine';
+import { arrivalStatus, buildAlternativeList } from './core/routing/arrivalStatus';
 import { loadClasses, loadSettings, saveClasses, saveSettings } from './core/storage/preferences';
-import type { ClassEvent, RealtimeSnapshot, TransitSelection, UserSettings } from './core/types';
-import { mapFamilyStopToVariant } from './campuses/duke/routeFamilies';
+import type {
+  ClassEvent,
+  CommuteRecommendation,
+  RealtimeSnapshot,
+  TransitSelection,
+  UserSettings,
+} from './core/types';
+import { findFamilyStopByStopId, mapFamilyStopToVariant } from './campuses/duke/routeFamilies';
 import { syncAndroidWidgets } from './core/widgets/android';
 import { localeFor, translate } from './i18n';
 
@@ -37,6 +72,7 @@ const defaults: UserSettings = {
   classStopBindings: {},
   groupClassStopsByBuilding: false,
   buildingStopBindings: {},
+  alertNotifications: 'my-routes',
 };
 
 const gtfsUrl = () =>
@@ -72,9 +108,10 @@ function areTransitSelectionsEqual(a: TransitSelection[], b: TransitSelection[])
 }
 
 export default function App() {
-  const [tab, setTab] = useState<'home' | 'week' | 'settings' | 'live-trip-map' | 'official-map'>(
-    'home',
-  );
+  const [tab, setTab] = useState<
+    'home' | 'week' | 'alerts' | 'settings' | 'live-trip-map' | 'official-map'
+  >('home');
+  const [settingsFocus, setSettingsFocus] = useState<SettingsFocusSection>();
   const [settings, setSettings] = useState<UserSettings>(defaults);
   const [classes, setClasses] = useState<ClassEvent[]>([]);
   const [snapshot, setSnapshot] = useState<GtfsSnapshot>();
@@ -83,6 +120,8 @@ export default function App() {
   const [gtfsError, setGtfsError] = useState('');
   const [notificationScheduled, setNotificationScheduled] = useState(false);
   const [realtimeSnapshot, setRealtimeSnapshot] = useState<RealtimeSnapshot>();
+  const [translocAlerts, setTranslocAlerts] = useState<TransitAlert[]>([]);
+  const [parkingAlerts, setParkingAlerts] = useState<TransitAlert[]>([]);
   const [now, setNow] = useState(() => new Date());
   const contentRef = useRef<HTMLElement>(null);
   const lastKnownGoodRef = useRef<LiveTripProgress | undefined>(undefined);
@@ -144,10 +183,39 @@ export default function App() {
       if (homeScrollTopRef.current > 0 && contentRef.current) {
         contentRef.current.scrollTo({ top: homeScrollTopRef.current, left: 0 });
       }
-    } else if (tab === 'week' || tab === 'settings') {
+    } else if (tab === 'week' || tab === 'alerts' || tab === 'settings') {
       contentRef.current?.scrollTo({ top: 0, left: 0 });
     }
   }, [tab]);
+
+  /**
+   * Settings deep link from the home screen. Only `main` is scrolled, and only vertically:
+   * `scrollIntoView` moved every scrollable ancestor and the visual viewport, which shifted the
+   * whole shell and clipped the topbar and the content edges.
+   */
+  useEffect(() => {
+    if (tab !== 'settings' || !settingsFocus) return;
+    const container = contentRef.current;
+    if (!container) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = container.querySelector<HTMLElement>(
+        `[data-settings-section="${settingsFocus}"]`,
+      );
+      if (!target) return;
+      const containerRect = container.getBoundingClientRect();
+      container.scrollTo({
+        top: settingsScrollTop({
+          targetTop: target.getBoundingClientRect().top,
+          containerTop: containerRect.top,
+          containerScrollTop: container.scrollTop,
+          containerScrollHeight: container.scrollHeight,
+          containerClientHeight: container.clientHeight,
+        }),
+        left: 0,
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [settingsFocus, tab]);
 
   const refreshGtfs = async (forceRefresh = false) => {
     setRefreshing(true);
@@ -171,8 +239,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    void Promise.all([loadSettings(defaults), loadClasses()]).then(
-      ([storedSettings, storedClasses]) => {
+    void Promise.all([loadSettings(defaults), loadClasses(), loadCachedAlerts()]).then(
+      ([storedSettings, storedClasses, cachedAlerts]) => {
         setSettings(
           campus.migrateSettings?.(storedSettings) ?? {
             ...storedSettings,
@@ -181,6 +249,8 @@ export default function App() {
           },
         );
         setClasses(storedClasses);
+        setTranslocAlerts(cachedAlerts.filter((alert) => alert.source === 'transloc'));
+        setParkingAlerts(cachedAlerts.filter((alert) => alert.source === 'parking-rss'));
         setHydrated(true);
       },
     );
@@ -193,6 +263,81 @@ export default function App() {
     const clockTimer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(clockTimer);
   }, []);
+
+  const translocAlertSource = useMemo(() => new DukeTranslocAlertSource(), []);
+  const parkingAlertSource = useMemo(() => new DukeParkingRssSource(), []);
+  const alertCatalog = useMemo(
+    () => (snapshot ? buildDukeAlertCatalog(snapshot.feed) : DUKE_EMPTY_ALERT_CATALOG),
+    [snapshot],
+  );
+
+  // Alerts refresh on their own cadence, independent of the 5s vehicle polling.
+  useEffect(() => {
+    let disposed = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const fetched = await translocAlertSource.fetch(
+          alertCatalog,
+          new Date(),
+          controller.signal,
+        );
+        if (!disposed) setTranslocAlerts(fetched);
+      } catch {
+        // Keep the last good alerts while the upstream feed is unreachable.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 5 * 60_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [alertCatalog, translocAlertSource]);
+
+  useEffect(() => {
+    let disposed = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const fetched = await parkingAlertSource.fetch(alertCatalog, new Date(), controller.signal);
+        if (!disposed) setParkingAlerts(fetched);
+      } catch {
+        // Browser builds cannot read the CORS-less RSS feed; Android uses native HTTP.
+        // A failure here must not block the other alert sources.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 20 * 60_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [alertCatalog, parkingAlertSource]);
+
+  const alerts = useMemo(
+    () => [...translocAlerts, ...parkingAlerts],
+    [translocAlerts, parkingAlerts],
+  );
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void saveCachedAlerts(alerts);
+  }, [alerts, hydrated]);
 
   useEffect(() => {
     if (hydrated) void saveSettings(settings);
@@ -348,10 +493,158 @@ export default function App() {
     return [...distinctDepartures.values()];
   }, [recommendations]);
   const recommended = visibleRecommendations[0];
-  const alternatives = visibleRecommendations.slice(1, 4);
   const recommendedRouteName = recommended
     ? routeName(recommended.route.id, recommended.route.shortName || recommended.route.longName)
     : '';
+
+  const arrivalStatusFor = useCallback(
+    (recommendation: CommuteRecommendation) =>
+      arrivalStatus(recommendation.minutesEarly, settings.defaultBufferMinutes),
+    [settings.defaultBufferMinutes],
+  );
+
+  /**
+   * The next departures after the recommended one. These can arrive after the class bell, so the
+   * cards label them instead of presenting them as safe (see `arrivalStatus`).
+   */
+  const nextDepartures = useMemo(() => {
+    const feed = snapshot?.feed;
+    if (!feed || !nextClass || !recommended) return [];
+    const collected = transitSelections.flatMap((selection) => {
+      const originStop = feed.stops.find((stop) => stop.id === selection.originStopId);
+      const destinationStop = feed.stops.find((stop) => stop.id === selection.destinationStopId);
+      if (!originStop || !destinationStop) return [];
+      return getFollowingDepartures(
+        {
+          feed,
+          request: {
+            origin: settings.home ?? originStop,
+            destination: destinationBuilding ?? destinationStop,
+            arrivalDeadline: nextClass.startTime,
+            bufferMinutes: settings.defaultBufferMinutes,
+          },
+          transitSelection: selection,
+          serviceTimezone: campus.config.timezone,
+          walkingSpeedMetersPerSecond: settings.walkingSpeedMetersPerSecond,
+          walkingCorrectionFactor: settings.walkingCorrectionFactor,
+        },
+        { afterDeparture: recommended.departureTime, count: 2 },
+      );
+    });
+    const seen = new Set<string>();
+    return collected
+      .sort((left, right) => left.departureTime.getTime() - right.departureTime.getTime())
+      .filter((entry) => {
+        const key = `${entry.route.id}:${entry.originStop.id}:${entry.destinationStop.id}:${entry.departureTime.toISOString()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 2);
+  }, [destinationBuilding, nextClass, recommended, settings, snapshot, transitSelections]);
+
+  /** Earlier backups (oldest first) followed by the next departures, in one time-ordered list. */
+  const alternatives = useMemo(
+    () => buildAlternativeList({ earlier: visibleRecommendations.slice(1), next: nextDepartures }),
+    [nextDepartures, visibleRecommendations],
+  );
+
+  const classStopLabel = useMemo(() => {
+    if (!configuredDestinationStopId) return undefined;
+    const familyStop = findFamilyStopByStopId(
+      settings.homeTransit?.routeFamilyId,
+      configuredDestinationStopId,
+    );
+    if (familyStop) return familyStop.name;
+    return (
+      snapshot?.feed.stops.find((stop) => stop.id === configuredDestinationStopId)?.name ??
+      configuredDestinationStopId
+    );
+  }, [configuredDestinationStopId, settings.homeTransit?.routeFamilyId, snapshot]);
+
+  const familyRouteIdsFor = useCallback((routeId?: string) => {
+    if (!routeId) return [];
+    const family = campus.routeFamilies?.find((entry) => entry.routeIds.includes(routeId));
+    return family ? family.routeIds : [routeId];
+  }, []);
+
+  const buildAlertContext = useCallback(
+    (scope: AlertNotificationScope) =>
+      mergeAlertNotificationContext({
+        scope,
+        savedRouteIds: familyRouteIdsFor(settings.homeTransit?.routeId),
+        savedStopIds: [settings.homeTransit?.originStopId, configuredDestinationStopId],
+        commuteRouteIds: familyRouteIdsFor(recommended?.route.id),
+        commuteStopIds: recommended
+          ? [recommended.originStop.id, recommended.destinationStop.id]
+          : [],
+      }),
+    [configuredDestinationStopId, familyRouteIdsFor, recommended, settings.homeTransit],
+  );
+
+  /** `active` is recomputed against the current clock so cached alerts cannot go stale. */
+  const alertsWithFreshStatus = useMemo(
+    () => alerts.map((alert) => withActiveStatus(alert, now)),
+    [alerts, now],
+  );
+  const activeAlerts = useMemo(
+    () => sortAlertsForDisplay(alertsWithFreshStatus.filter((alert) => alert.active)),
+    [alertsWithFreshStatus],
+  );
+  const alertRelevanceContext = useMemo(() => buildAlertContext('my-routes'), [buildAlertContext]);
+  /** Alerts related to the next trip first, then the rest of the active alerts. */
+  const homeAlerts = useMemo(() => {
+    const related = activeAlerts.filter((alert) =>
+      alertMatchesContext(alert, alertRelevanceContext),
+    );
+    const relatedIds = new Set(related.map((alert) => alert.id));
+    return [...related, ...activeAlerts.filter((alert) => !relatedIds.has(alert.id))];
+  }, [activeAlerts, alertRelevanceContext]);
+
+  const recommendedAlertBadge = useMemo(() => {
+    if (!recommended) return undefined;
+    const kind = alertKindForRoute(activeAlerts, recommended.route.id);
+    return kind ? alertKindLabel(kind, settings.language) : undefined;
+  }, [activeAlerts, recommended, settings.language]);
+
+  const weekPlanAlertBadge = useCallback(
+    (routeId: string) => {
+      const kind = alertKindForRoute(activeAlerts, routeId);
+      return kind ? alertKindLabel(kind, settings.language) : undefined;
+    },
+    [activeAlerts, settings.language],
+  );
+
+  const notifyScope = settings.alertNotifications ?? 'my-routes';
+  const alertNotificationContext = useMemo(
+    () => buildAlertContext(notifyScope),
+    [buildAlertContext, notifyScope],
+  );
+
+  const alertNotifyStateRef = useRef<AlertNotificationState | undefined>(undefined);
+  const alertNotifyInFlightRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || alertNotifyInFlightRef.current) return;
+    if (!alertsWithFreshStatus.some((alert) => alert.active)) return;
+    alertNotifyInFlightRef.current = true;
+    void (async () => {
+      try {
+        if (!alertNotifyStateRef.current) {
+          alertNotifyStateRef.current = await loadAlertNotificationState();
+        }
+        const candidates = selectNotifiableAlerts(alertsWithFreshStatus, alertNotificationContext);
+        const plan = selectAlertsToNotify(candidates, alertNotifyStateRef.current, new Date());
+        if (plan.toNotify.length === 0) return;
+        const scheduled = await scheduleAlertNotifications(plan.toNotify, settings.language);
+        if (scheduled > 0) {
+          alertNotifyStateRef.current = plan.nextState;
+          await saveAlertNotificationState(plan.nextState);
+        }
+      } finally {
+        alertNotifyInFlightRef.current = false;
+      }
+    })();
+  }, [alertNotificationContext, alertsWithFreshStatus, hydrated, settings.language]);
 
   const activeTripKey = `${recommended?.route.id ?? ''}:${recommended?.originStop.id ?? ''}:${recommended?.destinationStop.id ?? ''}`;
   useEffect(() => {
@@ -477,23 +770,32 @@ export default function App() {
     void saveClasses(events);
   };
 
-  const setNextClassStop = (nextDestinationStopId?: string) => {
-    if (!nextClassBindingKey) return;
-    if (settings.groupClassStopsByBuilding) {
-      const buildingStopBindings = { ...(settings.buildingStopBindings ?? {}) };
-      if (nextDestinationStopId) {
-        buildingStopBindings[nextClassBindingKey] = nextDestinationStopId;
-      } else {
-        delete buildingStopBindings[nextClassBindingKey];
-      }
-      setSettings({ ...settings, buildingStopBindings });
-    } else {
-      const classStopBindings = { ...(settings.classStopBindings ?? {}) };
-      if (nextDestinationStopId) classStopBindings[nextClassBindingKey] = nextDestinationStopId;
-      else delete classStopBindings[nextClassBindingKey];
-      setSettings({ ...settings, classStopBindings });
-    }
-  };
+  const openSettingsAt = useCallback(
+    (focus: SettingsFocusSection) => {
+      setSettingsFocus(focus);
+      changeTab('settings');
+    },
+    [changeTab],
+  );
+
+  // Leaving Settings drops the deep-link target so the next visit starts at the top.
+  useEffect(() => {
+    if (tab !== 'settings') setSettingsFocus(undefined);
+  }, [tab]);
+
+  /** Read-only arrival stop for the next class; editing lives in Settings. */
+  const classStopRow =
+    snapshot && settings.homeTransit?.routeId && settings.homeTransit.originStopId ? (
+      <button
+        className="class-stop-row"
+        type="button"
+        onClick={() => openSettingsAt('class-stops')}
+      >
+        <span>{translate(settings.language, 'getOffAt')}</span>
+        <strong>{classStopLabel ?? translate(settings.language, 'selectArrivalStop')}</strong>
+        <span aria-hidden="true">→</span>
+      </button>
+    ) : null;
 
   const isMapOpen = tab === 'live-trip-map' || tab === 'official-map';
 
@@ -543,80 +845,68 @@ export default function App() {
                   </section>
 
                   {!settings.home && settings.homeTransit?.originStopId && (
-                    <section className="notice-card">
+                    <div className="notice-banner">
                       <strong>{translate(settings.language, 'walkNotIncluded')}</strong>
-                      <p>{translate(settings.language, 'addHomePin')}</p>
                       <button className="secondary-button" onClick={() => setTab('settings')}>
                         {translate(settings.language, 'setHomeLocation')}
                       </button>
-                    </section>
+                    </div>
                   )}
 
                   {!snapshot && (
-                    <section className="notice-card">
+                    <div className="notice-banner">
                       <strong>
                         {translate(
                           settings.language,
                           refreshing ? 'loadingTransit' : 'transitUnavailable',
                         )}
                       </strong>
-                      <p>{gtfsError || translate(settings.language, 'firstDownload')}</p>
+                      <span>{gtfsError || translate(settings.language, 'firstDownload')}</span>
                       {!refreshing && (
                         <button className="secondary-button" onClick={() => void refreshGtfs(true)}>
                           {translate(settings.language, 'tryAgain')}
                         </button>
                       )}
-                    </section>
+                    </div>
                   )}
 
                   {snapshot &&
                     (!settings.homeTransit?.routeId || !settings.homeTransit.originStopId) && (
-                      <section className="notice-card">
+                      <div className="notice-banner">
                         <strong>{translate(settings.language, 'chooseHomeStop')}</strong>
-                        <p>{translate(settings.language, 'chooseHomeStopHint')}</p>
                         <button className="secondary-button" onClick={() => setTab('settings')}>
                           {translate(settings.language, 'configureHomeTransit')}
                         </button>
-                      </section>
-                    )}
-
-                  {snapshot &&
-                    settings.homeTransit?.routeId &&
-                    settings.homeTransit.originStopId && (
-                      <ClassDestinationField
-                        language={settings.language}
-                        feed={snapshot.feed}
-                        routeId={settings.homeTransit.routeId}
-                        routeFamilyId={settings.homeTransit.routeFamilyId}
-                        originStopId={settings.homeTransit.originStopId}
-                        classEvent={nextClass}
-                        value={destinationStopId}
-                        onChange={setNextClassStop}
-                        sharedByBuilding={settings.groupClassStopsByBuilding}
-                        card
-                      />
+                      </div>
                     )}
 
                   {snapshot && transitSelection && recommendations.length === 0 && (
-                    <section className="notice-card warning-card">
+                    <div className="notice-banner warning-card">
                       <strong>{translate(settings.language, 'noMatchingDeparture')}</strong>
-                      <p>{translate(settings.language, 'noMatchingDepartureHint')}</p>
-                    </section>
+                      <span>{translate(settings.language, 'noMatchingDepartureHint')}</span>
+                    </div>
                   )}
 
                   {recommended && (
                     <>
                       <RecommendationCard
                         language={settings.language}
-                        classEvent={nextClass}
                         recommendation={recommended}
                         routeName={recommendedRouteName}
+                        badge={recommendedAlertBadge}
+                        arrivalStatus={arrivalStatusFor(recommended)}
                       />
+                      {classStopRow}
                       <LiveRouteOverlay
                         language={settings.language}
                         routeName={recommendedRouteName}
                         progress={liveTripProgress}
                         onOpen={() => changeTab('live-trip-map')}
+                      />
+                      <AlertsSummary
+                        language={settings.language}
+                        alerts={homeAlerts}
+                        onOpen={() => changeTab('alerts')}
                       />
                       {notificationScheduled && (
                         <p className="notification-note">
@@ -633,12 +923,13 @@ export default function App() {
                             <RecommendationCard
                               language={settings.language}
                               key={`${alternative.leaveAt.toISOString()}-${alternative.trip.id}`}
-                              classEvent={nextClass}
                               recommendation={alternative}
                               routeName={routeName(
                                 alternative.route.id,
                                 alternative.route.shortName || alternative.route.longName,
                               )}
+                              badge={weekPlanAlertBadge(alternative.route.id)}
+                              arrivalStatus={arrivalStatusFor(alternative)}
                               compact
                             />
                           ))}
@@ -660,6 +951,7 @@ export default function App() {
                       </div>
                     </>
                   )}
+                  {!recommended && classStopRow}
                 </>
               )}
             </>
@@ -668,8 +960,11 @@ export default function App() {
               language={settings.language}
               plans={weekPlans}
               routeName={routeName}
+              alertBadge={weekPlanAlertBadge}
               onOpenSettings={() => changeTab('settings')}
             />
+          ) : tab === 'alerts' ? (
+            <AlertsPanel language={settings.language} alerts={homeAlerts} routeName={routeName} />
           ) : (
             <SettingsPanel
               settings={settings}
@@ -680,6 +975,7 @@ export default function App() {
               feed={snapshot?.feed}
               routeFamilies={campus.routeFamilies}
               classes={classes}
+              focusSection={settingsFocus}
               onSettings={setSettings}
               onImportClasses={importClasses}
               onRefresh={() => void refreshGtfs(true)}
@@ -695,6 +991,11 @@ export default function App() {
           <button className={tab === 'week' ? 'active' : ''} onClick={() => changeTab('week')}>
             <span>▦</span>
             {translate(settings.language, 'weekPlanNav')}
+          </button>
+          <button className={tab === 'alerts' ? 'active' : ''} onClick={() => changeTab('alerts')}>
+            {/* U+26A0 + U+FE0E keeps the warning triangle in its monochrome text form. */}
+            <span>{'\u26A0\uFE0E'}</span>
+            {translate(settings.language, 'alertsNav')}
           </button>
           <button
             className={tab === 'settings' ? 'active' : ''}

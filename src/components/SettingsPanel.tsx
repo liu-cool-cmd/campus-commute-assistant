@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { useEffect, useMemo, useState } from 'react';
 import { buildingBindingKey, classBindingKey } from '../core/calendar/bindings';
+import type { AlertNotificationScope } from '../core/alerts/types';
 import type {
   AppLanguage,
   CampusBuilding,
@@ -23,6 +24,8 @@ import { HomeMap } from './HomeMap';
 import { ImportClasses } from './ImportClasses';
 import { ClassDestinationField, HomeTransitSettings } from './TransitPreferences';
 
+export type SettingsFocusSection = 'class-stops';
+
 interface SettingsPanelProps {
   settings: UserSettings;
   campus: CampusConfig;
@@ -32,6 +35,7 @@ interface SettingsPanelProps {
   feed?: GtfsFeed;
   routeFamilies?: CampusRouteFamily[];
   classes: ClassEvent[];
+  focusSection?: SettingsFocusSection;
   onSettings(settings: UserSettings): void;
   onImportClasses(events: ClassEvent[]): void;
   onRefresh(): void;
@@ -65,6 +69,7 @@ export function SettingsPanel({
   feed,
   routeFamilies,
   classes,
+  focusSection,
   onSettings,
   onImportClasses,
   onRefresh,
@@ -72,6 +77,15 @@ export function SettingsPanel({
   const [locating, setLocating] = useState(false);
   const [locationStatus, setLocationStatus] = useState<string>();
   const [batteryStatus, setBatteryStatus] = useState<BatteryOptimizationStatus>();
+  const [highlighted, setHighlighted] = useState(false);
+
+  // Visual only: App owns the scroll so nothing can fight over the scroll container.
+  useEffect(() => {
+    if (focusSection !== 'class-stops') return;
+    setHighlighted(true);
+    const timer = window.setTimeout(() => setHighlighted(false), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [focusSection]);
   const language = settings.language;
   const isAndroid = Capacitor.getPlatform() === 'android';
   const setHome = (home: Location) => onSettings({ ...settings, home });
@@ -253,6 +267,34 @@ export function SettingsPanel({
       />
 
       <section className="settings-subsection">
+        <div>
+          <p className="eyebrow">{translate(language, 'settingsTransitAlerts')}</p>
+          <h2>{translate(language, 'settingsAlertNotifications')}</h2>
+          <p className="hint">{translate(language, 'settingsAlertNotificationsHint')}</p>
+        </div>
+        <label>
+          {translate(language, 'alertNotificationScope')}
+          <select
+            value={settings.alertNotifications ?? 'my-routes'}
+            onChange={(event) =>
+              onSettings({
+                ...settings,
+                alertNotifications: event.target.value as AlertNotificationScope,
+              })
+            }
+          >
+            <option value="off">{translate(language, 'alertScopeOff')}</option>
+            <option value="all">{translate(language, 'alertScopeAll')}</option>
+            <option value="my-routes">{translate(language, 'alertScopeMyRoutes')}</option>
+            <option value="important">{translate(language, 'alertScopeImportant')}</option>
+          </select>
+        </label>
+      </section>
+
+      <section
+        data-settings-section="class-stops"
+        className={`settings-subsection${highlighted ? ' settings-subsection-highlight' : ''}`}
+      >
         <div>
           <p className="eyebrow">{translate(language, 'classArrivalStops')}</p>
           <h2>{translate(language, 'whereToGetOff')}</h2>

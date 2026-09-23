@@ -12,6 +12,9 @@ The core modules contain no Duke-specific branching and can run in Vitest withou
 - `core/realtime`: vendor-neutral snapshots, request deduplication, polyline projection, directed
   loop progress, and conservative next-vehicle selection.
 - `core/notifications`: schedules stable, replaceable local notifications.
+- `core/alerts`: a campus-neutral alert model, an RSS parser, route/stop text matching,
+  notification-scope filtering, and refresh duplicate suppression. Campus adapters own the upstream
+  endpoints, field names, and route/stop aliases.
 - `core/planning`: derives a next-seven-days presentation from imported events and calls the same
   routing engine used by the next-class screen; it does not implement alternate routing rules.
 - `core/widgets`: serializes that plan into a small localized Android widget snapshot and invokes a
@@ -71,6 +74,15 @@ rewritten and become active again when the experiment is disabled. This changes 
 looks up the user's selected `destinationStopId`; the routing algorithm receives the same
 `TransitSelection` as before.
 
+## Home commute list
+
+The home screen shows the latest safe departure plus one time-ordered list of other departures: up to
+two earlier backups, then up to two following departures. Following departures deliberately ignore
+the arrival deadline (`getFollowingDepartures`), so they can arrive after the class bell;
+`arrivalStatus` labels each one as normal, at risk (less than the configured buffer) or late, while
+the recommendation itself stays the latest departure that satisfies the buffer. Arrival stops are
+configured in Settings; the home screen only displays the saved stop and links to that section.
+
 ## Week plan and Android widgets
 
 The week screen filters upcoming classes to the next seven calendar days, then evaluates each event
@@ -128,19 +140,44 @@ document is visible, and concurrent requests are deduplicated.
 `routeProgress` projects GPS and ordered stops onto cumulative polyline distance. Closed routes
 allow one validated stop-order seam wrap and use directed cyclic distance rather than geographic
 or shortest-path distance. Repeated/self-crossing segments require a unique projection or heading
-disambiguation. A vehicle older than 90 seconds, off-route, directionally contradictory, or only
+disambiguation. A vehicle older than 60 seconds, off-route, directionally contradictory, or only
 reachable through an unconfirmed next lap is not presented as the next bus.
 Fresh GPS and the selected route remain available to the map even when progress is ambiguous.
 The map then labels these as vehicle locations, with no next-bus claim or fabricated route distance.
 When projection is reliable but reaching the boarding stop requires crossing the loop seam, the
 home overlay and map share the computed directed distance and paths, with an explicit conditional
-continuation note. Status remains ambiguous: the distance does not confirm another operating lap.
+continuation note. Status remains `ambiguous`: the distance does not confirm another operating lap,
+so the overlay labels it as a loop continuation instead of an unavailable position.
 
 Duke's `duke-llccw` family is a UI/storage compatibility layer, not a feed rewrite. The existing
 matcher runs independently with `TL-13` and `TL-19`, and normal service calendars/windows determine
 which recommendations exist. Only the Duke adapter owns verified same-platform stop mappings.
 Unmapped timing points such as TL-269/TL-270 leave static results untouched and make only realtime
 visualization unavailable.
+
+## Transit alerts (v0.4)
+
+Two Duke sources are normalized into one campus-neutral `TransitAlert`:
+
+```text
+GetTwitterJSON (Ride Systems messages) -> DukeTranslocAlertSource -\
+                                                                   -> TransitAlert[] -> Preferences cache
+parking.duke.edu/news/rss.xml (news)   -> DukeParkingRssSource  --/                   -> dedupe -> local notification
+                                                                                      -> home summary + Alerts list
+```
+
+- The TransLoc payload carries no route or stop identifiers, so attribution is text-only:
+  `buildDukeAlertCatalog` derives aliases from the cached GTFS feed and the audited route families
+  and adds no second ID table.
+- `scope` is `routes` only on a reliable match, `system` only for an explicit whole-network phrase,
+  and `unknown` otherwise. An unmatched alert is never treated as campus-wide.
+- Parking news items use an explicit date range when their text has one, otherwise a 14-day TTL, so
+  old news does not linger.
+- Alerts refresh on their own cadence (TransLoc about 5 minutes, Parking about 20) and on resume;
+  they never share the 5-second vehicle poll. The Parking RSS feed is not CORS-enabled, so Android
+  relies on the Capacitor HTTP bridge and browser builds degrade to TransLoc only.
+- Notifications reuse the existing local-notification layer. `selectAlertsToNotify` notifies on
+  first appearance and on a meaningful content change, but not on every refresh.
 
 ## Adding a campus
 

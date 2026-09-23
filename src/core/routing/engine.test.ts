@@ -3,7 +3,7 @@ import { findBuilding } from '../locations/geo';
 import type { GtfsFeed, RoutingOptions, StopTime, Trip } from '../types';
 import { dukeBuildings } from '../../campuses/duke/buildings';
 import { isServiceActive } from '../gtfs/service';
-import { getCommuteRecommendations, recommendCommute } from './engine';
+import { getCommuteRecommendations, getFollowingDepartures, recommendCommute } from './engine';
 import { serviceTimeToDate } from '../gtfs/time';
 
 const origin = { lat: 36, lon: -78.95, label: 'Home' };
@@ -290,5 +290,58 @@ describe('GTFS timezone conversion', () => {
     expect(
       serviceTimeToDate('2026-08-24', seconds('09:41:00'), 'America/New_York').toISOString(),
     ).toBe('2026-08-24T13:41:00.000Z');
+  });
+});
+
+describe('getFollowingDepartures', () => {
+  it('returns the next departures after the recommendation, including late arrivals', () => {
+    const feed = makeFeed([
+      { id: 't-0930', departure: '09:30:00', arrival: '09:50:00' },
+      { id: 't-1000', departure: '10:00:00', arrival: '10:20:00' },
+      { id: 't-1030', departure: '10:30:00', arrival: '10:50:00' },
+    ]);
+    const request = options(feed);
+    const recommended = requiredRecommendation(request);
+    // 09:50 arrival satisfies the 09:58 buffered deadline, so it is the recommendation.
+    expect(recommended.trip.id).toBe('t-0930');
+    expect(recommended.minutesEarly).toBeGreaterThanOrEqual(0);
+
+    const following = getFollowingDepartures(request, {
+      afterDeparture: recommended.departureTime,
+      count: 2,
+    });
+    expect(following.map((entry) => entry.trip.id)).toEqual(['t-1000', 't-1030']);
+    // Both arrive after the class bell (10:05), which the strict recommendation never returns.
+    expect(following.every((entry) => entry.minutesEarly < 0)).toBe(true);
+    expect(getCommuteRecommendations(request).some((entry) => entry.trip.id === 't-1000')).toBe(
+      false,
+    );
+  });
+
+  it('caps the result and returns nothing when the recommendation is the last departure', () => {
+    const feed = makeFeed([
+      { id: 't-0900', departure: '09:00:00', arrival: '09:20:00' },
+      { id: 't-0930', departure: '09:30:00', arrival: '09:50:00' },
+      { id: 't-1000', departure: '10:00:00', arrival: '10:20:00' },
+    ]);
+    const request = options(feed);
+    const recommended = requiredRecommendation(request);
+    expect(recommended.trip.id).toBe('t-0930');
+
+    expect(
+      getFollowingDepartures(request, { afterDeparture: recommended.departureTime, count: 1 }).map(
+        (entry) => entry.trip.id,
+      ),
+    ).toEqual(['t-1000']);
+
+    const lastFeed = makeFeed([
+      { id: 't-0900', departure: '09:00:00', arrival: '09:20:00' },
+      { id: 't-0930', departure: '09:30:00', arrival: '09:50:00' },
+    ]);
+    const lastRequest = options(lastFeed);
+    const last = requiredRecommendation(lastRequest);
+    expect(
+      getFollowingDepartures(lastRequest, { afterDeparture: last.departureTime, count: 2 }),
+    ).toEqual([]);
   });
 });

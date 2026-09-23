@@ -267,4 +267,119 @@ describe('Duke route families', () => {
       { routeId: 'TL-13', originStopId: 'TL-90', destinationStopId: 'TL-200' },
     ]);
   });
+
+  // Loop routes start and end at the same stop. On LL/LLCCW that stop is Duke Clinic
+  // (TL-200 day / TL-216 night), so it appears twice in every trip and any boarding stop
+  // before the final pass must still reach it.
+  const loopFeed: GtfsFeed = {
+    routes: [
+      { id: 'TL-13', shortName: 'LLCCW', longName: 'Day', type: 3 },
+      { id: 'TL-19', shortName: 'LLCCWN', longName: 'Night', type: 3 },
+    ],
+    stops: [
+      { id: 'TL-200', name: 'Research Dr at Duke Clinic (Day)', lat: 36.01, lon: -78.94 },
+      { id: 'TL-270', name: 'Circuit Dr timing point (Day)', lat: 36.0, lon: -78.95 },
+      { id: 'TL-90', name: 'The Heights at LaSalle (Day)', lat: 36.0, lon: -78.95 },
+      { id: 'TL-195', name: 'Circuit Dr at F.E.L. Labs (Day)', lat: 36.0, lon: -78.95 },
+      { id: 'TL-216', name: 'Research Dr at Duke Clinic (Night)', lat: 36.01, lon: -78.94 },
+      { id: 'TL-212', name: 'Circuit Dr at F.E.L. Labs (Night)', lat: 36.0, lon: -78.95 },
+    ],
+    trips: [
+      { id: 'day-loop', routeId: 'TL-13', serviceId: 'srv' },
+      { id: 'night-loop', routeId: 'TL-19', serviceId: 'srv' },
+    ],
+    stopTimes: [
+      // Real TL-13 order: Duke Clinic is the first and the last stop of the loop.
+      {
+        tripId: 'day-loop',
+        stopId: 'TL-200',
+        arrivalSeconds: 32_400,
+        departureSeconds: 32_400,
+        stopSequence: 1,
+      },
+      {
+        tripId: 'day-loop',
+        stopId: 'TL-270',
+        arrivalSeconds: 32_700,
+        departureSeconds: 32_700,
+        stopSequence: 2,
+      },
+      {
+        tripId: 'day-loop',
+        stopId: 'TL-90',
+        arrivalSeconds: 33_000,
+        departureSeconds: 33_000,
+        stopSequence: 3,
+      },
+      {
+        tripId: 'day-loop',
+        stopId: 'TL-90',
+        arrivalSeconds: 33_200,
+        departureSeconds: 33_200,
+        stopSequence: 4,
+      },
+      {
+        tripId: 'day-loop',
+        stopId: 'TL-195',
+        arrivalSeconds: 33_600,
+        departureSeconds: 33_600,
+        stopSequence: 5,
+      },
+      {
+        tripId: 'day-loop',
+        stopId: 'TL-200',
+        arrivalSeconds: 34_200,
+        departureSeconds: 34_200,
+        stopSequence: 6,
+      },
+      {
+        tripId: 'night-loop',
+        stopId: 'TL-212',
+        arrivalSeconds: 68_400,
+        departureSeconds: 68_400,
+        stopSequence: 1,
+      },
+      {
+        tripId: 'night-loop',
+        stopId: 'TL-216',
+        arrivalSeconds: 69_000,
+        departureSeconds: 69_000,
+        stopSequence: 2,
+      },
+    ],
+    frequencies: [],
+    calendars: [
+      {
+        serviceId: 'srv',
+        startDate: '2026-08-01',
+        endDate: '2026-12-31',
+        weekdays: [true, true, true, true, true, true, true],
+      },
+    ],
+    calendarDates: [],
+    shapes: [],
+  };
+
+  it('reaches a loop terminus that is also the first stop of the trip', () => {
+    const result = resolveDukeTransitSelections(
+      { routeId: 'TL-13', originStopId: 'TL-195', destinationStopId: 'TL-200' },
+      loopFeed,
+      new Date('2026-09-25T10:00:00-04:00'),
+      DUKE_LLCCW_FAMILY_ID,
+    );
+    expect(result).toEqual([
+      { routeId: 'TL-13', originStopId: 'TL-195', destinationStopId: 'TL-200' },
+    ]);
+  });
+
+  it('still rejects a destination that is upstream of the boarding stop on every pass', () => {
+    expect(
+      resolveDukeTransitSelections(
+        { routeId: 'TL-13', originStopId: 'TL-90', destinationStopId: 'TL-270' },
+        loopFeed,
+        new Date('2026-09-25T10:00:00-04:00'),
+        DUKE_LLCCW_FAMILY_ID,
+      ),
+    ).toEqual([]);
+  });
 });

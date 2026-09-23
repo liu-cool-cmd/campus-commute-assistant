@@ -511,30 +511,52 @@ export function resolveDukeTransitSelections(
       const times = timesByTrip.get(trip.id);
       if (!times) continue;
 
-      const originTime = times.find((t) => t.stopId === originStopId);
-      const destTime = times.find((t) => t.stopId === destinationStopId);
-      if (!originTime || !destTime || originTime.stopSequence >= destTime.stopSequence) continue;
+      // A stop can occur more than once in a single trip: loop routes start and end at the same
+      // stop (Duke Clinic is the first and last stop on LL/LLCCW). Consider every occurrence so
+      // a boarding stop before the final pass still reaches the destination, matching
+      // getDownstreamStops and the routing engine instead of only the first occurrence.
+      const originTimes = times.filter((time) => time.stopId === originStopId);
+      const destinationTimes = times.filter((time) => time.stopId === destinationStopId);
+      if (originTimes.length === 0 || destinationTimes.length === 0) continue;
+
+      const isOrderedPair = (originTime: StopTime, destinationTime: StopTime) =>
+        originTime.stopSequence < destinationTime.stopSequence;
 
       // In test feeds with relative seconds < 3600 (e.g. 0 to 90 seconds), treat as applicable
       const isRelativeTemplate =
         times[0]?.arrivalSeconds === 0 && (times.at(-1)?.arrivalSeconds ?? 0) < 3600;
 
+      let tripMatches = false;
+      let tripDeltaSeconds = Infinity;
+
       if (isRelativeTemplate) {
-        foundTripInWindow = true;
-        minDeltaSeconds = Math.min(minDeltaSeconds, 0);
-        break;
+        tripMatches = originTimes.some((originTime) =>
+          destinationTimes.some((destinationTime) => isOrderedPair(originTime, destinationTime)),
+        );
+        tripDeltaSeconds = 0;
+      } else {
+        for (const originTime of originTimes) {
+          for (const destinationTime of destinationTimes) {
+            if (!isOrderedPair(originTime, destinationTime)) continue;
+            // A trip is near commuteAt if destination arrival is within 120 min before
+            // commuteAt or 30 min after.
+            if (
+              destinationTime.arrivalSeconds <= commuteSeconds + 1800 &&
+              destinationTime.arrivalSeconds >= commuteSeconds - 7200
+            ) {
+              tripMatches = true;
+              tripDeltaSeconds = Math.min(
+                tripDeltaSeconds,
+                Math.abs(destinationTime.arrivalSeconds - commuteSeconds),
+              );
+            }
+          }
+        }
       }
 
-      // Check arrival at destination vs commuteAt
-      // A trip is near commuteAt if destination arrival is within 120 min before commuteAt or 30 min after
-      const delta = Math.abs(destTime.arrivalSeconds - commuteSeconds);
-      if (
-        destTime.arrivalSeconds <= commuteSeconds + 1800 &&
-        destTime.arrivalSeconds >= commuteSeconds - 7200
-      ) {
-        foundTripInWindow = true;
-        minDeltaSeconds = Math.min(minDeltaSeconds, delta);
-      }
+      if (!tripMatches) continue;
+      foundTripInWindow = true;
+      minDeltaSeconds = Math.min(minDeltaSeconds, tripDeltaSeconds);
     }
 
     if (!foundTripInWindow) {

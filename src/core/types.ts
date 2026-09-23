@@ -1,3 +1,5 @@
+import type { AlertNotificationScope } from './alerts/types';
+
 export interface Coordinates {
   lat: number;
   lon: number;
@@ -251,6 +253,8 @@ export interface UserSettings {
   classStopBindings?: Record<string, string>;
   groupClassStopsByBuilding: boolean;
   buildingStopBindings?: Record<string, string>;
+  /** v0.4 system-notification scope for Duke transit alerts. Defaults to `my-routes`. */
+  alertNotifications?: AlertNotificationScope;
   /** Legacy v0.1 selection, migrated on load. */
   transitSelection?: TransitSelectionDraft;
 }

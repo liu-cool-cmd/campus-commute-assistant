@@ -5,6 +5,7 @@ interface WeekPlanProps {
   language: AppLanguage;
   plans: CommutePlan[];
   routeName?(routeId: string, fallback: string): string;
+  alertBadge?(routeId: string): string | undefined;
   onOpenSettings(): void;
 }
 
@@ -31,7 +32,13 @@ function statusMessage(plan: CommutePlan, language: AppLanguage): string {
   }
 }
 
-export function WeekPlan({ language, plans, routeName, onOpenSettings }: WeekPlanProps) {
+export function WeekPlan({
+  language,
+  plans,
+  routeName,
+  alertBadge,
+  onOpenSettings,
+}: WeekPlanProps) {
   const groups = new Map<string, CommutePlan[]>();
   for (const plan of plans) {
     const key = dayKey(plan.classEvent.startTime);
@@ -70,6 +77,9 @@ export function WeekPlan({ language, plans, routeName, onOpenSettings }: WeekPla
                 <div className="week-day-plans">
                   {dayPlans.map((plan) => {
                     const recommendation = plan.recommendation;
+                    const badge = recommendation
+                      ? alertBadge?.(recommendation.route.id)
+                      : undefined;
                     return (
                       <article className="week-plan-card" key={plan.classEvent.id}>
                         <div className="week-class-row">
@@ -96,6 +106,7 @@ export function WeekPlan({ language, plans, routeName, onOpenSettings }: WeekPla
                                 ) ??
                                   (recommendation.route.shortName || recommendation.route.longName)}
                               </span>
+                              {badge && <span className="route-alert-badge">{badge}</span>}
                               <span>
                                 {translate(language, 'departAt', {
                                   time: time(recommendation.departureTime, language),

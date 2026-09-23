@@ -63,7 +63,7 @@ directed route polyline; route distance, ordered stops, loop seams, stale data, 
 parallel/self-crossing segments are handled by the campus-neutral `core/realtime` module.
 
 The Duke adapter maps `Vehicle.RouteID -> TransLoc Route.RouteID -> Route.GtfsId -> GTFS route_id`
-exactly. It never matches names or invents `TL-*` IDs. GPS older than 90 seconds is stale, and the
+exactly. It never matches names or invents `TL-*` IDs. GPS older than 60 seconds is stale, and the
 provider derives `recordedAt` from response receipt time minus TransLoc's `Seconds` field because
 the legacy timestamp offset is unreliable. `GroundSpeed` is retained but not displayed with an
 unverified unit.
@@ -73,6 +73,16 @@ LLCCW is presented as one saved `duke-llccw` family while static matching still 
 pairs cross that adapter boundary; `TL-269`, `TL-270`, and the non-identical `TL-278/TL-279` pair
 are never aliased. If a selected timing point is absent from the current rider-map route, only Live
 Trip becomes unavailable—the timetable recommendation remains intact.
+
+## v0.4 Transit alerts
+
+Duke transit alerts are collected from the public TransLoc message feed and the Parking &
+Transportation news RSS, normalized into one `TransitAlert` shape, and surfaced on the home screen
+with a dedicated Alerts list and per-route badges. Settings choose whether system notifications are
+off, all, limited to the user's routes, or limited to important disruptions; the in-app list always
+stays available even when notifications are off. The TransLoc payload has no route/stop IDs, so
+attribution is a conservative text match against the cached GTFS data and never invents a second ID
+table.
 
 ## Stack
 
@@ -169,6 +179,7 @@ src/
     routing/        # selected route/stop timetable matcher
     realtime/       # provider contract
     notifications/  # native reminder scheduling
+    alerts/         # transit alert model, RSS, matching, dedupe
     storage/        # local settings and classes
   campuses/
     duke/

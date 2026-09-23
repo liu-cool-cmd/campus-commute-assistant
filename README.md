@@ -5,14 +5,15 @@
 Campus Commute Assistant works backward from the next class on your calendar. It combines the class
 time, a locally cached campus GTFS schedule, the user's saved home line and boarding stop, each
 course's saved arrival stop, optional walking estimates, and a configurable safety buffer to
-recommend when to leave for a matching bus.
+recommend when to leave for a matching bus. It also surfaces Duke transit alerts from the TransLoc
+message feed and the Parking & Transportation news feed.
 
 The v0.1 adapter targets Duke University. The routing and data modules are campus-neutral so another
 school can be added without forking the core engine.
 
 ![Campus Commute Assistant screenshot placeholder](docs/screenshot-placeholder.svg)
 
-## What works in v0.1
+## What works
 
 - Import or replace `.ics` calendars and expand recurring class events for the coming year. A
   successful replacement swaps the saved events atomically while retaining route and stop choices.
@@ -48,6 +49,11 @@ school can be added without forking the core engine.
 - Open Android's battery optimization management screen from Settings when device power management
   delays reminders or widget refreshes.
 - Build as a Vite web app or a Capacitor Android app without an application server.
+- Surface Duke transit alerts from the TransLoc message feed and the Parking news RSS in a home
+  summary, a dedicated Alerts tab, and per-route badges, with a configurable notification scope.
+- Order the home screen so the recommended leave time and the live mini map come first, list earlier
+  backups and the following departures (labelled when they may be late), and keep arrival-stop
+  editing in Settings.
 
 v0.1 is a timetable matcher, not a general journey planner. It does not search nearby stops,
 substitute routes, or calculate transfers. A Home pin adds the walk to the saved boarding stop. A
@@ -57,8 +63,9 @@ does not block matching and is treated as the arrival stop itself.
 ## v0.2 Live Trip (phase 1)
 
 Live Trip is an optional visualization layered on top of the unchanged static recommendation. A
-single foreground cache polls vehicle positions about every 30 seconds, pauses while the document
-is hidden, and reuses lower-frequency route metadata. Vehicle GPS is projected onto TransLoc's
+single foreground cache polls vehicle positions about every 5 seconds while the home or Live Trip
+screen shows a recommendation, pauses while the document is hidden, and reuses route metadata cached
+for 15 minutes. Vehicle GPS is projected onto TransLoc's
 directed route polyline; route distance, ordered stops, loop seams, stale data, and ambiguous
 parallel/self-crossing segments are handled by the campus-neutral `core/realtime` module.
 
@@ -74,20 +81,77 @@ pairs cross that adapter boundary; `TL-269`, `TL-270`, and the non-identical `TL
 are never aliased. If a selected timing point is absent from the current rider-map route, only Live
 Trip becomes unavailable—the timetable recommendation remains intact.
 
+## Home screen
+
+The home screen is ordered so the two things that matter most stay at the top: the recommended
+departure time and the live mini map.
+
+1. Next-class header: class name, date, location, and start time.
+2. Recommended departure card: the leave time and the bus arrival time at the saved boarding stop,
+   plus how early it arrives relative to the configured buffer. Walk to the stop, arrival at the
+   alighting stop, the walk to class, the headway allowance, and the schedule source sit behind a
+   collapsible **Details** row.
+3. Read-only arrival-stop row. Arrival stops are edited in Settings; tapping the row opens Settings,
+   scrolls to the class-arrival-stop section, and highlights it for a moment.
+4. Live mini map (square), linking to the focused Live Trip map.
+5. Active alerts, when there are any. The summary is hidden entirely when nothing is active; the
+   full list always lives in the Alerts tab.
+6. Other departures in one time-ordered list: up to two earlier backups (leave earlier and wait),
+   then up to two departures after the recommendation. A later departure is tagged **May be late**
+   when it arrives before the bell without the full buffer, and **Late** when it arrives after it.
+   The recommendation itself is still only ever a departure that satisfies the buffer.
+7. Compact one-line notices for the states that need action (no schedule, no home line, no matching
+   departure, no home pin), then the remaining actions.
+
+The document root never scrolls: the shell's single scroll container is the content column, so
+dragging on the bottom navigation cannot move the layout, and the deep link to Settings scrolls only
+that column.
+
 ## v0.4 Transit alerts
 
-Duke transit alerts are collected from the public TransLoc message feed and the Parking &
-Transportation news RSS, normalized into one `TransitAlert` shape, and surfaced on the home screen
-with a dedicated Alerts list and per-route badges. Settings choose whether system notifications are
-off, all, limited to the user's routes, or limited to important disruptions; the in-app list always
-stays available even when notifications are off. The TransLoc payload has no route/stop IDs, so
-attribution is a conservative text match against the cached GTFS data and never invents a second ID
-table.
+Duke transit alerts are merged from two public sources into one campus-neutral `TransitAlert`:
+
+- the TransLoc rider-map message feed (`GetTwitterJSON`), which is the only alert channel the
+  official rider map itself uses; and
+- the Parking & Transportation news RSS feed.
+
+Each alert carries a source, severity, scope, affected route/stop IDs, publish/start/end times, and an
+active flag.
+
+- **Scope is never a fallback.** `routes` means the text reliably matched known routes, `system` is
+  used only when the text explicitly says the whole network is affected, and everything else stays
+  `unknown`. An unmatched alert is never presented as campus-wide. Attribution is a conservative text
+  match against the cached GTFS data and the audited route families; the TransLoc payload has no
+  route or stop identifiers, and the app never invents a second ID table.
+- **Lifecycle.** TransLoc messages use their own start/end dates. Parking items use an explicit date
+  range when their text contains one, and otherwise expire 14 days after publication, so old news
+  does not linger as an active alert.
+- **Cadence.** Alerts refresh on their own schedule — TransLoc about every 5 minutes, Parking about
+  every 20 — plus on launch and on resume. They never share the app's vehicle polling.
+- **Notifications.** Settings choose Off, All alerts, My routes only (the default), or Important
+  alerts only. "My routes only" matches the saved line and its variants, the upcoming commute, and
+  the saved boarding and alighting stops. Seeing an unchanged alert again never re-notifies; a
+  meaningful content change does. The in-app list stays available even when notifications are off.
+- **No CORS on the news feed.** Android reads it through Capacitor's native HTTP bridge; web builds
+  degrade to TransLoc only instead of failing.
+
+## Notable fixes
+
+- Loop routes start and end at the same stop (Duke Clinic is the first and last stop on both LaSalle
+  Loop variants). Variant resolution now considers every occurrence of a stop within a trip instead
+  of only the first, so that stop works again as an arrival stop on both LL and LLCCW.
+- The week plan no longer asks for an arrival stop that is already saved: a missing binding reports
+  "choose an arrival stop", while a saved stop with no usable departure at that time reports "no
+  matching departure".
+- The Live Trip status pill separates a loop-seam continuation (the vehicle position is reliable,
+  only continued service past the route start is unconfirmed) from a genuinely unavailable position,
+  and labels an ambiguous projection as ambiguous instead of "live location unavailable".
+- Stale vehicle data uses a 60-second threshold; earlier documentation said 90.
 
 ## Stack
 
-React 19, TypeScript, Vite, Capacitor 7, Capacitor Preferences, IndexedDB, Leaflet with OpenStreetMap,
-`ical.js`, `fflate`, Vitest, ESLint, and Prettier.
+React 19, TypeScript, Vite, Capacitor 7 (Preferences, Local Notifications, Geolocation), IndexedDB,
+Leaflet with OpenStreetMap, `ical.js`, `fflate`, Vitest, ESLint, and Prettier.
 
 ## Run locally
 
@@ -132,7 +196,8 @@ cd android
 ```
 
 The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. Android 13 and newer
-ask for notification permission when the first future commute reminder is scheduled. The manifest
+ask for notification permission when the first future commute reminder or alert notification is
+scheduled. The manifest
 declares coarse and fine location access, but runtime permission is requested only after **Use
 current location** is pressed; searching an address or dropping a pin never requests GPS access.
 
@@ -155,6 +220,8 @@ GTFS zip -> IndexedDB -> parsed feed -+-> exact route/stop matcher -> UI + notif
 saved home stop + per-class stop -----+
                                       |
                                       +-> 7-day local snapshot -> Android widgets
+
+TransLoc messages + Parking RSS -> alert cache (Preferences) -> Alerts tab + alert notification
 ```
 
 Preferences is used for small settings and course data. The binary GTFS archive is kept in
@@ -186,6 +253,7 @@ src/
       config.ts
       buildings.ts
       realtime.ts
+      alerts.ts
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the boundaries and routing scope.
@@ -247,9 +315,10 @@ card. Daytime LLCCW is the published exact 24-minute cycle from 07:12 through 17
 current TransLoc stop order is included; un-timed intermediate stops are interpolated between Duke's
 published checkpoints and displayed as approximate/low-confidence times. Evening departures are
 stored explicitly because the official table has an irregular first gap, but only its published
-timed stops are exposed because the current TransLoc night stop order conflicts with that table. The
-supplement covers weekdays from
-2026-08-10 through 2027-05-09 and must be reviewed when Duke publishes the next schedule. It does
+timed stops are exposed because the current TransLoc night stop order conflicts with that table. This
+LLCCW supplement covers weekdays from 2026-08-10 through 2027-05-09 and must be reviewed when Duke
+publishes the next schedule; the published Fall 2026 tables that drive the other routes are bounded to
+2026-12-31 instead. It does
 not infer holiday or special-event exceptions absent from the route page. If TransLoc begins
 providing trips for a variant, its raw GTFS data automatically wins and the supplement is skipped.
 
@@ -259,19 +328,27 @@ parcel centroids.
 
 ## Tests
 
-The suite covers quoted GTFS CSV, recurring ICS events, seven-day window filtering, timezone conversion, multiple feasible
-buses, a last bus that misses the deadline, buffer behavior, weekend calendars,
-`calendar_dates` additions/removals, after-midnight stop times, no feasible transit, unknown
-buildings, selected stop order, and refusal to substitute an unselected route.
+The suite covers quoted GTFS CSV, recurring ICS events, seven-day window filtering, timezone
+conversion, multiple feasible buses, a last bus that misses the deadline, buffer behavior, weekend
+calendars, `calendar_dates` additions/removals, after-midnight stop times, no feasible transit,
+unknown buildings, selected stop order, and refusal to substitute an unselected route.
+
+It also covers the newer surfaces: TransLoc alert parsing (including a captured non-empty payload),
+Parking RSS parsing and its 14-day fallback, route/stop text matching, notification-scope filtering,
+refresh duplicate suppression, alert content updates, the home departure list and its normal / may
+be late / late classification, resolution of a loop terminus that is also a trip's first stop,
+week-plan status selection, Live Trip status labels, and the Settings deep-link scroll offset.
 
 GitHub Actions runs formatting, lint, typecheck, tests, the production web build, Capacitor sync, and
 an Android debug APK build.
 
 ## Roadmap
 
-- v0.2: Live Trip vehicle positions, route progress, and stale/ambiguous data warnings.
-- Later v0.2: verified arrivals and explicitly opt-in delay-aware recommendation experiments.
-- v0.2: optional system calendar access and richer Duke building coverage.
+- v0.2 Live Trip vehicle positions, route progress, and stale/ambiguous data warnings. _Shipped._
+- v0.4 Transit alerts from the TransLoc message feed and the Parking news RSS, with notification
+  scope settings, per-route badges, and labelled following departures. _Shipped._
+- Next: verified arrivals and explicitly opt-in delay-aware recommendation experiments, optional
+  system calendar access, and richer Duke building coverage.
 - Later: saved route/stop presets, bike timing, more campus adapters, and accessible commute
   preferences.
 
@@ -280,9 +357,12 @@ PR1, H1/H2 and LNC schedules, remaining source conflicts, and GPS-only map fallb
 
 ## Privacy
 
-Schedules, language, stop bindings, and saved Home coordinates remain on the device. The app sends
-GTFS and foreground Live Trip requests to Duke's TransLoc host, map-tile requests to OpenStreetMap,
-and only user-submitted address searches to OpenStreetMap Nominatim. It has no analytics or
+Schedules, language, stop bindings, alert scope, and saved Home coordinates remain on the device.
+The app sends GTFS and foreground Live Trip requests to Duke's TransLoc host, map-tile requests to
+OpenStreetMap, and only user-submitted address searches to OpenStreetMap Nominatim. Foreground alert
+refresh also requests Duke's TransLoc message feed and the Duke Parking & Transportation news RSS
+(through native HTTP on Android, which is required because that feed does not send CORS headers).
+Cached alerts and the notification dedupe state stay on the device. The app has no analytics or
 application backend. Do not enter confidential information in the address search.
 
 ## License

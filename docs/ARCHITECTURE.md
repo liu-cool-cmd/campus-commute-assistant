@@ -134,8 +134,9 @@ Duke public rider-map responses -> DukeRealtimeProvider -> RealtimeSnapshotCache
 The Duke parser is the only layer that knows TransLoc endpoints and PascalCase response fields. It
 maps the numeric provider RouteID through the returned route object's exact `GtfsId`; core modules
 receive only GTFS route IDs, decoded coordinates, ordered stops, and normalized vehicle records.
-Route metadata is cached for 15 minutes, vehicle snapshots refresh about every 30 seconds while the
-document is visible, and concurrent requests are deduplicated.
+Route metadata is cached for 15 minutes, vehicle snapshots refresh about every 5 seconds while the
+document is visible and the home or Live Trip screen shows a recommendation, and concurrent requests
+are deduplicated.
 
 `routeProgress` projects GPS and ordered stops onto cumulative polyline distance. Closed routes
 allow one validated stop-order seam wrap and use directed cyclic distance rather than geographic

@@ -33,6 +33,8 @@ HTML belongs in ignored samples, with filenames matching the script. It is not f
 
 The new data is deliberately bounded to 2026-08-10 through 2026-12-31 pending a new semester review;
 the end date is an application review boundary, not an official declaration of service through holidays.
+That window applies to the published tables in `publishedTimetables.json`; the separate LLCCW official
+supplement in `officialSchedule.ts` runs through 2027-05-09 instead.
 Holiday/football changes require a future verified exception source. The official tables themselves
 have inconsistencies: C1 weekend stop-number cells disagree with their direction-specific headings;
 the reviewed mapping follows the named C1 timing-point columns. LNC timetable topology differs from

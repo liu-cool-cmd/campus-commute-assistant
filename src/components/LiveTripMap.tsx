@@ -1,5 +1,5 @@
 import { divIcon, latLngBounds } from 'leaflet';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CircleMarker,
   MapContainer,
@@ -40,32 +40,34 @@ function FitTripController({ progress, recenterTrigger }: FitTripControllerProps
   const tripKey = `${progress.route?.routeId ?? ''}:${progress.boardingStop?.id ?? ''}:${progress.arrivalStop?.id ?? ''}`;
 
   const fit = useCallback(() => {
-    const rawLocations = [
-      progress.boardingStop,
-      progress.arrivalStop,
-      ...(progress.vehicle ? [progress.vehicle] : (progress.mapVehicles ?? [])),
-    ];
-    const locations: Coordinates[] = rawLocations
-      .filter((point) => point !== undefined)
-      .map((p) => ({ lat: p!.lat, lon: p!.lon }));
+    const locations: Coordinates[] = [];
 
-    if (!locations.length && progress.route?.polyline) {
+    // Always include full route polyline so bends and outer curves are never clipped
+    if (progress.route?.polyline?.length) {
       locations.push(...progress.route.polyline);
     }
+    if (progress.boardingStop) locations.push(progress.boardingStop);
+    if (progress.arrivalStop) locations.push(progress.arrivalStop);
+    if (progress.vehicle) locations.push(progress.vehicle);
+    for (const v of progress.mapVehicles ?? []) {
+      locations.push(v);
+    }
+
     if (!locations.length) return;
 
+    // Asymmetric padding to clear the bottom floating card (.live-trip-map-summary)
     map.fitBounds(latLngBounds(locations.map((loc) => [loc.lat, loc.lon])), {
-      padding: [38, 38],
-      maxZoom: 16,
+      paddingTopLeft: [28, 28],
+      paddingBottomRight: [28, 96],
       animate: true,
     });
   }, [
     map,
+    progress.route?.polyline,
     progress.boardingStop,
     progress.arrivalStop,
     progress.vehicle,
     progress.mapVehicles,
-    progress.route?.polyline,
   ]);
 
   // Detect user manual dragging or zooming so vehicle ticks never override user viewport
@@ -105,6 +107,7 @@ interface LiveVehicleMarkerProps {
   vehicle: VehiclePosition;
   routeName: string;
   language: AppLanguage;
+  isPrimary: boolean;
   isFallback: boolean;
   icon: ReturnType<typeof divIcon>;
 }
@@ -113,6 +116,7 @@ function LiveVehicleMarker({
   vehicle,
   routeName,
   language,
+  isPrimary,
   isFallback,
   icon,
 }: LiveVehicleMarkerProps) {
@@ -120,7 +124,10 @@ function LiveVehicleMarker({
   return (
     <Marker position={[vehicle.lat, vehicle.lon]} icon={icon}>
       <Popup>
-        <strong>{vehicle.name ?? vehicle.vehicleId}</strong>
+        <strong>
+          {vehicle.name ?? vehicle.vehicleId}
+          {isPrimary ? ` (${translate(language, 'live')})` : ''}
+        </strong>
         <br />
         {routeName}
         <br />
@@ -158,15 +165,26 @@ export function LiveTripMap({
   const [recenterTrigger, setRecenterTrigger] = useState(0);
   const dynamicAge = useRealtimeAge(progress.vehicle?.recordedAt) ?? progress.gpsAgeSeconds ?? 0;
 
-  const vehicleIcon = (heading = 0, isFallback = false) =>
+  const vehicleIcon = (heading = 0, isFallback = false, isPrimary = true) =>
     divIcon({
-      className: `live-bus-marker-shell ${isFallback ? 'bus-fallback' : ''}`,
+      className: `live-bus-marker-shell ${isFallback ? 'bus-fallback' : ''} ${isPrimary ? 'bus-primary' : 'bus-secondary'}`,
       html: `<span class="live-bus-marker" style="transform:rotate(${heading}deg)">▲</span>`,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17],
+      iconSize: isPrimary ? [34, 34] : [28, 28],
+      iconAnchor: isPrimary ? [17, 17] : [14, 14],
     });
 
-  const visibleVehicles = progress.vehicle ? [progress.vehicle] : (progress.mapVehicles ?? []);
+  const visibleVehicles = useMemo(() => {
+    const map = new Map<string, VehiclePosition>();
+    if (progress.vehicle) {
+      map.set(progress.vehicle.vehicleId, progress.vehicle);
+    }
+    for (const v of progress.mapVehicles ?? []) {
+      if (!map.has(v.vehicleId)) {
+        map.set(v.vehicleId, v);
+      }
+    }
+    return [...map.values()];
+  }, [progress.vehicle, progress.mapVehicles]);
   const center = progress.boardingStop ?? progress.route?.polyline[0];
 
   return (
@@ -220,16 +238,17 @@ export function LiveTripMap({
             />
 
             {visibleVehicles.map((vehicle) => {
-              const isVehicleFallback =
-                Boolean(progress.isFallback) && vehicle.vehicleId === progress.vehicle?.vehicleId;
+              const isPrimary = vehicle.vehicleId === progress.vehicle?.vehicleId;
+              const isVehicleFallback = Boolean(progress.isFallback) && isPrimary;
               return (
                 <LiveVehicleMarker
                   key={vehicle.vehicleId}
                   vehicle={vehicle}
                   routeName={routeName}
                   language={language}
+                  isPrimary={isPrimary}
                   isFallback={isVehicleFallback}
-                  icon={vehicleIcon(vehicle.bearing, isVehicleFallback)}
+                  icon={vehicleIcon(vehicle.bearing, isVehicleFallback, isPrimary)}
                 />
               );
             })}

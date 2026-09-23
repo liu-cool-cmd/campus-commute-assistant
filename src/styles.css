@@ -1214,6 +1214,15 @@ h2 {
     0 0 0 2px #c57a26,
     0 4px 12px rgba(197, 122, 38, 0.4);
 }
+.live-bus-marker-shell.bus-secondary .live-bus-marker {
+  background: #52675e;
+  border: 2px solid white;
+  width: 26px;
+  height: 26px;
+  font-size: 0.72rem;
+  opacity: 0.88;
+  box-shadow: 0 2px 8px rgba(18, 60, 49, 0.25);
+}
 .live-route-fallback-badge {
   color: #b56214;
   font-weight: 700;

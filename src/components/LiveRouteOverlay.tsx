@@ -30,67 +30,31 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
 
   const calculateTargetLocations = useCallback(() => {
     const locations: Coordinates[] = [];
+    if (progress.route?.polyline?.length) {
+      locations.push(...progress.route.polyline);
+    }
     if (progress.boardingStop) locations.push(progress.boardingStop);
+    if (progress.arrivalStop) locations.push(progress.arrivalStop);
     if (progress.vehicle) locations.push(progress.vehicle);
-
-    // If arrival stop is close enough (within ~1500m), include it for context
-    if (progress.boardingStop && progress.arrivalStop) {
-      const dist = Math.hypot(
-        (progress.arrivalStop.lat - progress.boardingStop.lat) * 111_000,
-        (progress.arrivalStop.lon - progress.boardingStop.lon) * 111_000 * 0.81,
-      );
-      if (dist <= 1500) {
-        locations.push(progress.arrivalStop);
-      }
-    }
-
-    if (locations.length < 2 && progress.route?.polyline?.length) {
-      locations.push(...progress.route.polyline.slice(0, 15));
-    }
     return locations;
-  }, [progress.boardingStop, progress.arrivalStop, progress.vehicle, progress.route?.polyline]);
+  }, [progress.route?.polyline, progress.boardingStop, progress.arrivalStop, progress.vehicle]);
 
   const calcRef = useRef(calculateTargetLocations);
   calcRef.current = calculateTargetLocations;
 
-  // Initial fit when trip changes
+  // Fit the whole route once when trip/route changes
   useEffect(() => {
     if (tripKey && tripKey !== lastTripKeyRef.current) {
       lastTripKeyRef.current = tripKey;
       const targetLocations = calcRef.current();
       if (targetLocations.length) {
         map.fitBounds(latLngBounds(targetLocations.map((l) => [l.lat, l.lon])), {
-          padding: [24, 24],
-          maxZoom: 16,
+          padding: [14, 14],
           animate: false,
         });
       }
     }
   }, [tripKey, map]);
-
-  // Follow vehicle smoothly if it approaches boundary or moves out of the comfortable viewport
-  useEffect(() => {
-    if (!progress.vehicle) return;
-    try {
-      const currentBounds = map.getBounds();
-      // Safe inner zone: 20% margin from edges
-      const innerBounds = currentBounds.pad(-0.2);
-      const vehicleLatLng = [progress.vehicle.lat, progress.vehicle.lon] as [number, number];
-
-      if (!innerBounds.contains(vehicleLatLng)) {
-        const targetLocations = calculateTargetLocations();
-        if (targetLocations.length) {
-          map.flyToBounds(latLngBounds(targetLocations.map((l) => [l.lat, l.lon])), {
-            padding: [24, 24],
-            maxZoom: 16,
-            duration: 0.8,
-          });
-        }
-      }
-    } catch {
-      // Map instance may be unmounted or sizing
-    }
-  }, [progress.vehicle, calculateTargetLocations, map]);
 
   return null;
 }

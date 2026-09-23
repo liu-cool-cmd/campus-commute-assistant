@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultCampus } from './campuses';
 import { ImportClasses } from './components/ImportClasses';
 import { LiveRouteOverlay } from './components/LiveRouteOverlay';
@@ -87,9 +87,66 @@ export default function App() {
   const contentRef = useRef<HTMLElement>(null);
   const lastKnownGoodRef = useRef<LiveTripProgress | undefined>(undefined);
   const realtimeCache = useMemo(() => new RealtimeSnapshotCache(campus.realtime), []);
+  const homeScrollTopRef = useRef<number>(0);
+
+  const handleContentScroll = () => {
+    if (tab === 'home' && contentRef.current) {
+      homeScrollTopRef.current = contentRef.current.scrollTop;
+    }
+  };
+
+  const changeTab = useCallback(
+    (nextTab: typeof tab) => {
+      if (nextTab === tab) {
+        if (tab === 'home' && contentRef.current) {
+          contentRef.current.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+          homeScrollTopRef.current = 0;
+        }
+        return;
+      }
+      if (tab === 'home' && contentRef.current) {
+        homeScrollTopRef.current = contentRef.current.scrollTop;
+      }
+      if (nextTab !== 'home' && tab === 'home') {
+        window.history.pushState({ tab: nextTab }, '');
+      } else if (nextTab === 'home' && window.history.state?.tab) {
+        window.history.replaceState({ tab: 'home' }, '');
+      }
+      setTab(nextTab);
+    },
+    [tab],
+  );
+
+  // Support Android system back button / back gesture and browser history
+  useEffect(() => {
+    const handleBackButton = (e: Event) => {
+      if (tab !== 'home') {
+        e.preventDefault();
+        setTab('home');
+      }
+    };
+    window.addEventListener('appBackButton', handleBackButton);
+
+    const handlePopState = (e: PopStateEvent) => {
+      const nextTab = (e.state?.tab as typeof tab | undefined) ?? 'home';
+      setTab(nextTab);
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('appBackButton', handleBackButton);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [tab]);
 
   useEffect(() => {
-    contentRef.current?.scrollTo({ top: 0, left: 0 });
+    if (tab === 'home') {
+      if (homeScrollTopRef.current > 0 && contentRef.current) {
+        contentRef.current.scrollTo({ top: homeScrollTopRef.current, left: 0 });
+      }
+    } else if (tab === 'week' || tab === 'settings') {
+      contentRef.current?.scrollTo({ top: 0, left: 0 });
+    }
   }, [tab]);
 
   const refreshGtfs = async (forceRefresh = false) => {
@@ -428,49 +485,28 @@ export default function App() {
     }
   };
 
-  if (tab === 'live-trip-map' && recommended) {
-    return (
-      <LiveTripMap
-        language={settings.language}
-        routeName={recommendedRouteName}
-        progress={liveTripProgress}
-        home={settings.home}
-        destination={destinationBuilding}
-        onClose={() => setTab('home')}
-        onOpenOfficial={() => setTab('official-map')}
-      />
-    );
-  }
-
-  if (tab === 'official-map' && campus.config.liveMapUrl) {
-    return (
-      <LiveTransitMap
-        url={campus.config.liveMapUrl}
-        language={settings.language}
-        onClose={() => setTab('home')}
-      />
-    );
-  }
+  const isMapOpen = tab === 'live-trip-map' || tab === 'official-map';
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="brand-mark">CCA</div>
-        <div>
-          <strong>Campus Commute</strong>
-          <span>{campus.config.name}</span>
-        </div>
-        <button
-          className="icon-button"
-          aria-label={translate(settings.language, 'openSettings')}
-          onClick={() => setTab('settings')}
-        >
-          ⚙
-        </button>
-      </header>
+    <>
+      <div className="app-shell" aria-hidden={isMapOpen ? 'true' : undefined}>
+        <header className="topbar">
+          <div className="brand-mark">CCA</div>
+          <div>
+            <strong>Campus Commute</strong>
+            <span>{campus.config.name}</span>
+          </div>
+          <button
+            className="icon-button"
+            aria-label={translate(settings.language, 'openSettings')}
+            onClick={() => changeTab('settings')}
+          >
+            ⚙
+          </button>
+        </header>
 
-      <main ref={contentRef}>
-        {tab === 'home' ? (
+        <main ref={contentRef} onScroll={handleContentScroll}>
+          {tab === 'home' || isMapOpen ? (
           <>
             {!nextClass ? (
               <section className="empty-state">
@@ -568,7 +604,7 @@ export default function App() {
                       language={settings.language}
                       routeName={recommendedRouteName}
                       progress={liveTripProgress}
-                      onOpen={() => setTab('live-trip-map')}
+                      onOpen={() => changeTab('live-trip-map')}
                     />
                     {notificationScheduled && (
                       <p className="notification-note">
@@ -601,12 +637,12 @@ export default function App() {
                         <button
                           className="primary-button live-map-button"
                           type="button"
-                          onClick={() => setTab('official-map')}
+                          onClick={() => changeTab('official-map')}
                         >
                           {translate(settings.language, 'openFullTransloc')}
                         </button>
                       )}
-                      <button className="text-button" onClick={() => setTab('settings')}>
+                      <button className="text-button" onClick={() => changeTab('settings')}>
                         {translate(settings.language, 'adjustDefaults')}
                       </button>
                     </div>
@@ -620,7 +656,7 @@ export default function App() {
             language={settings.language}
             plans={weekPlans}
             routeName={routeName}
-            onOpenSettings={() => setTab('settings')}
+            onOpenSettings={() => changeTab('settings')}
           />
         ) : (
           <SettingsPanel
@@ -640,19 +676,40 @@ export default function App() {
       </main>
 
       <nav className="bottom-nav" aria-label={translate(settings.language, 'primaryNavigation')}>
-        <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>
+        <button className={tab === 'home' ? 'active' : ''} onClick={() => changeTab('home')}>
           <span>⌂</span>
           {translate(settings.language, 'nextTrip')}
         </button>
-        <button className={tab === 'week' ? 'active' : ''} onClick={() => setTab('week')}>
+        <button className={tab === 'week' ? 'active' : ''} onClick={() => changeTab('week')}>
           <span>▦</span>
           {translate(settings.language, 'weekPlanNav')}
         </button>
-        <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
+        <button className={tab === 'settings' ? 'active' : ''} onClick={() => changeTab('settings')}>
           <span>⚙</span>
           {translate(settings.language, 'settings')}
         </button>
       </nav>
     </div>
+
+    {tab === 'live-trip-map' && recommended && (
+      <LiveTripMap
+        language={settings.language}
+        routeName={recommendedRouteName}
+        progress={liveTripProgress}
+        home={settings.home}
+        destination={destinationBuilding}
+        onClose={() => changeTab('home')}
+        onOpenOfficial={() => changeTab('official-map')}
+      />
+    )}
+
+    {tab === 'official-map' && campus.config.liveMapUrl && (
+      <LiveTransitMap
+        url={campus.config.liveMapUrl}
+        language={settings.language}
+        onClose={() => changeTab('home')}
+      />
+    )}
+  </>
   );
 }

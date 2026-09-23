@@ -529,7 +529,10 @@ export function resolveDukeTransitSelections(
       // Check arrival at destination vs commuteAt
       // A trip is near commuteAt if destination arrival is within 120 min before commuteAt or 30 min after
       const delta = Math.abs(destTime.arrivalSeconds - commuteSeconds);
-      if (destTime.arrivalSeconds <= commuteSeconds + 1800 && destTime.arrivalSeconds >= commuteSeconds - 7200) {
+      if (
+        destTime.arrivalSeconds <= commuteSeconds + 1800 &&
+        destTime.arrivalSeconds >= commuteSeconds - 7200
+      ) {
         foundTripInWindow = true;
         minDeltaSeconds = Math.min(minDeltaSeconds, delta);
       }
@@ -544,7 +547,7 @@ export function resolveDukeTransitSelections(
     // Soft realtime ranking signal: check if this route has active vehicles or isRunning
     const hasActiveRealtimeVehicle = Boolean(
       realtime?.routes.some((r) => r.routeId === routeId && r.isRunning) ||
-        realtime?.vehicles.some((v) => v.routeId === routeId && v.isOnRoute),
+      realtime?.vehicles.some((v) => v.routeId === routeId && v.isOnRoute),
     );
 
     candidateResults.push({

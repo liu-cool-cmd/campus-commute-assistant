@@ -28,10 +28,7 @@ export function applyDukePublishedSchedules(feed: GtfsFeed): GtfsFeed {
     timesByTrip.set(time.tripId, times);
   }
   for (const times of timesByTrip.values()) times.sort((a, b) => a.stopSequence - b.stopSequence);
-  const covered = new Set([
-    ...data.datasets.map((table) => table.routeId),
-    'TL-10',
-  ]);
+  const covered = new Set([...data.datasets.map((table) => table.routeId), 'TL-10']);
   const replaced = new Set<string>();
   const templates = new Map<string, StopTime[]>();
   for (const routeId of covered) {

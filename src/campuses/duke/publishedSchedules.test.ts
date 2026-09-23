@@ -91,9 +91,7 @@ describe('Duke published Fall 2026 schedules', () => {
           time.tripId.startsWith(weekdays + ':') && time.departureSeconds === 24 * 3600 + 20 * 60,
       ),
     ).toBe(true);
-    const h2Weekend = data.datasets.find(
-      (d) => d.routeId === 'TL-16' && d.days.includes(0),
-    );
+    const h2Weekend = data.datasets.find((d) => d.routeId === 'TL-16' && d.days.includes(0));
     expect(h2Weekend?.rows.at(-1)![0]).toBe(18 * 60 + 30);
   });
 

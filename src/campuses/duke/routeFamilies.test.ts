@@ -99,19 +99,51 @@ describe('Duke route families', () => {
         { id: 'night-trip', routeId: 'TL-19', serviceId: 'srv' },
       ],
       stopTimes: [
-        { tripId: 'day-trip', stopId: 'TL-90', arrivalSeconds: 8 * 3600, departureSeconds: 8 * 3600, stopSequence: 1 },
-        { tripId: 'day-trip', stopId: 'TL-200', arrivalSeconds: 8 * 3600 + 600, departureSeconds: 8 * 3600 + 600, stopSequence: 2 },
-        { tripId: 'night-trip', stopId: 'TL-205', arrivalSeconds: 19 * 3600, departureSeconds: 19 * 3600, stopSequence: 1 },
-        { tripId: 'night-trip', stopId: 'TL-216', arrivalSeconds: 19 * 3600 + 600, departureSeconds: 19 * 3600 + 600, stopSequence: 2 },
-        { tripId: 'night-trip', stopId: 'TL-221', arrivalSeconds: 19 * 3600 + 900, departureSeconds: 19 * 3600 + 900, stopSequence: 3 },
+        {
+          tripId: 'day-trip',
+          stopId: 'TL-90',
+          arrivalSeconds: 8 * 3600,
+          departureSeconds: 8 * 3600,
+          stopSequence: 1,
+        },
+        {
+          tripId: 'day-trip',
+          stopId: 'TL-200',
+          arrivalSeconds: 8 * 3600 + 600,
+          departureSeconds: 8 * 3600 + 600,
+          stopSequence: 2,
+        },
+        {
+          tripId: 'night-trip',
+          stopId: 'TL-205',
+          arrivalSeconds: 19 * 3600,
+          departureSeconds: 19 * 3600,
+          stopSequence: 1,
+        },
+        {
+          tripId: 'night-trip',
+          stopId: 'TL-216',
+          arrivalSeconds: 19 * 3600 + 600,
+          departureSeconds: 19 * 3600 + 600,
+          stopSequence: 2,
+        },
+        {
+          tripId: 'night-trip',
+          stopId: 'TL-221',
+          arrivalSeconds: 19 * 3600 + 900,
+          departureSeconds: 19 * 3600 + 900,
+          stopSequence: 3,
+        },
       ],
       frequencies: [],
-      calendars: [{
-        serviceId: 'srv',
-        startDate: '2026-08-01',
-        endDate: '2026-12-31',
-        weekdays: [true, true, true, true, true, true, true],
-      }],
+      calendars: [
+        {
+          serviceId: 'srv',
+          startDate: '2026-08-01',
+          endDate: '2026-12-31',
+          weekdays: [true, true, true, true, true, true, true],
+        },
+      ],
       calendarDates: [],
       shapes: [],
     };
@@ -157,18 +189,44 @@ describe('Duke route families', () => {
         { id: 'night-18', routeId: 'TL-19', serviceId: 'srv' },
       ],
       stopTimes: [
-        { tripId: 'day-18', stopId: 'TL-90', arrivalSeconds: 18 * 3600, departureSeconds: 18 * 3600, stopSequence: 1 },
-        { tripId: 'day-18', stopId: 'TL-200', arrivalSeconds: 18 * 3600 + 600, departureSeconds: 18 * 3600 + 600, stopSequence: 2 },
-        { tripId: 'night-18', stopId: 'TL-205', arrivalSeconds: 18 * 3600 + 300, departureSeconds: 18 * 3600 + 300, stopSequence: 1 },
-        { tripId: 'night-18', stopId: 'TL-216', arrivalSeconds: 18 * 3600 + 900, departureSeconds: 18 * 3600 + 900, stopSequence: 2 },
+        {
+          tripId: 'day-18',
+          stopId: 'TL-90',
+          arrivalSeconds: 18 * 3600,
+          departureSeconds: 18 * 3600,
+          stopSequence: 1,
+        },
+        {
+          tripId: 'day-18',
+          stopId: 'TL-200',
+          arrivalSeconds: 18 * 3600 + 600,
+          departureSeconds: 18 * 3600 + 600,
+          stopSequence: 2,
+        },
+        {
+          tripId: 'night-18',
+          stopId: 'TL-205',
+          arrivalSeconds: 18 * 3600 + 300,
+          departureSeconds: 18 * 3600 + 300,
+          stopSequence: 1,
+        },
+        {
+          tripId: 'night-18',
+          stopId: 'TL-216',
+          arrivalSeconds: 18 * 3600 + 900,
+          departureSeconds: 18 * 3600 + 900,
+          stopSequence: 2,
+        },
       ],
       frequencies: [],
-      calendars: [{
-        serviceId: 'srv',
-        startDate: '2026-08-01',
-        endDate: '2026-12-31',
-        weekdays: [true, true, true, true, true, true, true],
-      }],
+      calendars: [
+        {
+          serviceId: 'srv',
+          startDate: '2026-08-01',
+          endDate: '2026-12-31',
+          weekdays: [true, true, true, true, true, true, true],
+        },
+      ],
       calendarDates: [],
       shapes: [],
     };
@@ -210,4 +268,3 @@ describe('Duke route families', () => {
     ]);
   });
 });
-

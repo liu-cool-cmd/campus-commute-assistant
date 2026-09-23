@@ -239,7 +239,11 @@ export default function App() {
         : undefined;
     }
     for (const routeId of family.routeIds) {
-      const originId = mapFamilyStopToVariant(family.id, settings.homeTransit.originStopId, routeId);
+      const originId = mapFamilyStopToVariant(
+        family.id,
+        settings.homeTransit.originStopId,
+        routeId,
+      );
       const destId = mapFamilyStopToVariant(family.id, configuredDestinationStopId, routeId);
       if (!originId || !destId) continue;
       if (getDownstreamStops(snapshot.feed, routeId, originId).some((stop) => stop.id === destId)) {
@@ -276,7 +280,13 @@ export default function App() {
     }
     transitSelectionsRef.current = resolved;
     return resolved;
-  }, [nextClass, realtimeSnapshot, settings.homeTransit?.routeFamilyId, snapshot, transitSelection]);
+  }, [
+    nextClass,
+    realtimeSnapshot,
+    settings.homeTransit?.routeFamilyId,
+    snapshot,
+    transitSelection,
+  ]);
 
   useEffect(() => {
     if (!snapshot || !nextClass || !settings.transitSelection) return;
@@ -507,209 +517,214 @@ export default function App() {
 
         <main ref={contentRef} onScroll={handleContentScroll}>
           {tab === 'home' || isMapOpen ? (
-          <>
-            {!nextClass ? (
-              <section className="empty-state">
-                <div className="empty-icon">↗</div>
-                <p className="eyebrow">{translate(settings.language, 'startHere')}</p>
-                <h1>{translate(settings.language, 'whenShouldYouLeave')}</h1>
-                <p>{translate(settings.language, 'importPrompt')}</p>
-                <ImportClasses language={settings.language} onImport={importClasses} />
-              </section>
-            ) : (
-              <>
-                <section className="next-class-card">
-                  <div>
-                    <p className="eyebrow">
-                      {translate(settings.language, 'nextClass')} ·{' '}
-                      {classDate(nextClass.startTime, settings.language)}
-                    </p>
-                    <h1>{nextClass.title}</h1>
-                    <p>
-                      {nextClass.location || translate(settings.language, 'locationNotProvided')}
-                    </p>
-                  </div>
-                  <time>{classTime(nextClass.startTime, settings.language)}</time>
+            <>
+              {!nextClass ? (
+                <section className="empty-state">
+                  <div className="empty-icon">↗</div>
+                  <p className="eyebrow">{translate(settings.language, 'startHere')}</p>
+                  <h1>{translate(settings.language, 'whenShouldYouLeave')}</h1>
+                  <p>{translate(settings.language, 'importPrompt')}</p>
+                  <ImportClasses language={settings.language} onImport={importClasses} />
                 </section>
-
-                {!settings.home && settings.homeTransit?.originStopId && (
-                  <section className="notice-card">
-                    <strong>{translate(settings.language, 'walkNotIncluded')}</strong>
-                    <p>{translate(settings.language, 'addHomePin')}</p>
-                    <button className="secondary-button" onClick={() => setTab('settings')}>
-                      {translate(settings.language, 'setHomeLocation')}
-                    </button>
+              ) : (
+                <>
+                  <section className="next-class-card">
+                    <div>
+                      <p className="eyebrow">
+                        {translate(settings.language, 'nextClass')} ·{' '}
+                        {classDate(nextClass.startTime, settings.language)}
+                      </p>
+                      <h1>{nextClass.title}</h1>
+                      <p>
+                        {nextClass.location || translate(settings.language, 'locationNotProvided')}
+                      </p>
+                    </div>
+                    <time>{classTime(nextClass.startTime, settings.language)}</time>
                   </section>
-                )}
 
-                {!snapshot && (
-                  <section className="notice-card">
-                    <strong>
-                      {translate(
-                        settings.language,
-                        refreshing ? 'loadingTransit' : 'transitUnavailable',
-                      )}
-                    </strong>
-                    <p>{gtfsError || translate(settings.language, 'firstDownload')}</p>
-                    {!refreshing && (
-                      <button className="secondary-button" onClick={() => void refreshGtfs(true)}>
-                        {translate(settings.language, 'tryAgain')}
-                      </button>
-                    )}
-                  </section>
-                )}
-
-                {snapshot &&
-                  (!settings.homeTransit?.routeId || !settings.homeTransit.originStopId) && (
+                  {!settings.home && settings.homeTransit?.originStopId && (
                     <section className="notice-card">
-                      <strong>{translate(settings.language, 'chooseHomeStop')}</strong>
-                      <p>{translate(settings.language, 'chooseHomeStopHint')}</p>
+                      <strong>{translate(settings.language, 'walkNotIncluded')}</strong>
+                      <p>{translate(settings.language, 'addHomePin')}</p>
                       <button className="secondary-button" onClick={() => setTab('settings')}>
-                        {translate(settings.language, 'configureHomeTransit')}
+                        {translate(settings.language, 'setHomeLocation')}
                       </button>
                     </section>
                   )}
 
-                {snapshot && settings.homeTransit?.routeId && settings.homeTransit.originStopId && (
-                  <ClassDestinationField
-                    language={settings.language}
-                    feed={snapshot.feed}
-                    routeId={settings.homeTransit.routeId}
-                    routeFamilyId={settings.homeTransit.routeFamilyId}
-                    originStopId={settings.homeTransit.originStopId}
-                    classEvent={nextClass}
-                    value={destinationStopId}
-                    onChange={setNextClassStop}
-                    sharedByBuilding={settings.groupClassStopsByBuilding}
-                    card
-                  />
-                )}
-
-                {snapshot && transitSelection && recommendations.length === 0 && (
-                  <section className="notice-card warning-card">
-                    <strong>{translate(settings.language, 'noMatchingDeparture')}</strong>
-                    <p>{translate(settings.language, 'noMatchingDepartureHint')}</p>
-                  </section>
-                )}
-
-                {recommended && (
-                  <>
-                    <RecommendationCard
-                      language={settings.language}
-                      classEvent={nextClass}
-                      recommendation={recommended}
-                      routeName={recommendedRouteName}
-                    />
-                    <LiveRouteOverlay
-                      language={settings.language}
-                      routeName={recommendedRouteName}
-                      progress={liveTripProgress}
-                      onOpen={() => changeTab('live-trip-map')}
-                    />
-                    {notificationScheduled && (
-                      <p className="notification-note">
-                        {translate(settings.language, 'reminderScheduled')}
-                      </p>
-                    )}
-                    {alternatives.length > 0 && (
-                      <section className="alternatives-section">
-                        <div className="section-heading compact-heading">
-                          <p className="eyebrow">{translate(settings.language, 'backups')}</p>
-                          <h2>{translate(settings.language, 'alternatives')}</h2>
-                        </div>
-                        {alternatives.map((alternative) => (
-                          <RecommendationCard
-                            language={settings.language}
-                            key={`${alternative.leaveAt.toISOString()}-${alternative.trip.id}`}
-                            classEvent={nextClass}
-                            recommendation={alternative}
-                            routeName={routeName(
-                              alternative.route.id,
-                              alternative.route.shortName || alternative.route.longName,
-                            )}
-                            compact
-                          />
-                        ))}
-                      </section>
-                    )}
-                    <div className="action-row">
-                      {campus.config.liveMapUrl && (
-                        <button
-                          className="primary-button live-map-button"
-                          type="button"
-                          onClick={() => changeTab('official-map')}
-                        >
-                          {translate(settings.language, 'openFullTransloc')}
+                  {!snapshot && (
+                    <section className="notice-card">
+                      <strong>
+                        {translate(
+                          settings.language,
+                          refreshing ? 'loadingTransit' : 'transitUnavailable',
+                        )}
+                      </strong>
+                      <p>{gtfsError || translate(settings.language, 'firstDownload')}</p>
+                      {!refreshing && (
+                        <button className="secondary-button" onClick={() => void refreshGtfs(true)}>
+                          {translate(settings.language, 'tryAgain')}
                         </button>
                       )}
-                      <button className="text-button" onClick={() => changeTab('settings')}>
-                        {translate(settings.language, 'adjustDefaults')}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </>
-        ) : tab === 'week' ? (
-          <WeekPlan
-            language={settings.language}
-            plans={weekPlans}
-            routeName={routeName}
-            onOpenSettings={() => changeTab('settings')}
-          />
-        ) : (
-          <SettingsPanel
-            settings={settings}
-            campus={campus.config}
-            buildings={campus.buildings}
-            gtfsUpdatedAt={snapshot?.fetchedAt}
-            refreshing={refreshing}
-            feed={snapshot?.feed}
-            routeFamilies={campus.routeFamilies}
-            classes={classes}
-            onSettings={setSettings}
-            onImportClasses={importClasses}
-            onRefresh={() => void refreshGtfs(true)}
-          />
-        )}
-      </main>
+                    </section>
+                  )}
 
-      <nav className="bottom-nav" aria-label={translate(settings.language, 'primaryNavigation')}>
-        <button className={tab === 'home' ? 'active' : ''} onClick={() => changeTab('home')}>
-          <span>⌂</span>
-          {translate(settings.language, 'nextTrip')}
-        </button>
-        <button className={tab === 'week' ? 'active' : ''} onClick={() => changeTab('week')}>
-          <span>▦</span>
-          {translate(settings.language, 'weekPlanNav')}
-        </button>
-        <button className={tab === 'settings' ? 'active' : ''} onClick={() => changeTab('settings')}>
-          <span>⚙</span>
-          {translate(settings.language, 'settings')}
-        </button>
-      </nav>
-    </div>
+                  {snapshot &&
+                    (!settings.homeTransit?.routeId || !settings.homeTransit.originStopId) && (
+                      <section className="notice-card">
+                        <strong>{translate(settings.language, 'chooseHomeStop')}</strong>
+                        <p>{translate(settings.language, 'chooseHomeStopHint')}</p>
+                        <button className="secondary-button" onClick={() => setTab('settings')}>
+                          {translate(settings.language, 'configureHomeTransit')}
+                        </button>
+                      </section>
+                    )}
 
-    {tab === 'live-trip-map' && recommended && (
-      <LiveTripMap
-        language={settings.language}
-        routeName={recommendedRouteName}
-        progress={liveTripProgress}
-        home={settings.home}
-        destination={destinationBuilding}
-        onClose={() => changeTab('home')}
-        onOpenOfficial={() => changeTab('official-map')}
-      />
-    )}
+                  {snapshot &&
+                    settings.homeTransit?.routeId &&
+                    settings.homeTransit.originStopId && (
+                      <ClassDestinationField
+                        language={settings.language}
+                        feed={snapshot.feed}
+                        routeId={settings.homeTransit.routeId}
+                        routeFamilyId={settings.homeTransit.routeFamilyId}
+                        originStopId={settings.homeTransit.originStopId}
+                        classEvent={nextClass}
+                        value={destinationStopId}
+                        onChange={setNextClassStop}
+                        sharedByBuilding={settings.groupClassStopsByBuilding}
+                        card
+                      />
+                    )}
 
-    {tab === 'official-map' && campus.config.liveMapUrl && (
-      <LiveTransitMap
-        url={campus.config.liveMapUrl}
-        language={settings.language}
-        onClose={() => changeTab('home')}
-      />
-    )}
-  </>
+                  {snapshot && transitSelection && recommendations.length === 0 && (
+                    <section className="notice-card warning-card">
+                      <strong>{translate(settings.language, 'noMatchingDeparture')}</strong>
+                      <p>{translate(settings.language, 'noMatchingDepartureHint')}</p>
+                    </section>
+                  )}
+
+                  {recommended && (
+                    <>
+                      <RecommendationCard
+                        language={settings.language}
+                        classEvent={nextClass}
+                        recommendation={recommended}
+                        routeName={recommendedRouteName}
+                      />
+                      <LiveRouteOverlay
+                        language={settings.language}
+                        routeName={recommendedRouteName}
+                        progress={liveTripProgress}
+                        onOpen={() => changeTab('live-trip-map')}
+                      />
+                      {notificationScheduled && (
+                        <p className="notification-note">
+                          {translate(settings.language, 'reminderScheduled')}
+                        </p>
+                      )}
+                      {alternatives.length > 0 && (
+                        <section className="alternatives-section">
+                          <div className="section-heading compact-heading">
+                            <p className="eyebrow">{translate(settings.language, 'backups')}</p>
+                            <h2>{translate(settings.language, 'alternatives')}</h2>
+                          </div>
+                          {alternatives.map((alternative) => (
+                            <RecommendationCard
+                              language={settings.language}
+                              key={`${alternative.leaveAt.toISOString()}-${alternative.trip.id}`}
+                              classEvent={nextClass}
+                              recommendation={alternative}
+                              routeName={routeName(
+                                alternative.route.id,
+                                alternative.route.shortName || alternative.route.longName,
+                              )}
+                              compact
+                            />
+                          ))}
+                        </section>
+                      )}
+                      <div className="action-row">
+                        {campus.config.liveMapUrl && (
+                          <button
+                            className="primary-button live-map-button"
+                            type="button"
+                            onClick={() => changeTab('official-map')}
+                          >
+                            {translate(settings.language, 'openFullTransloc')}
+                          </button>
+                        )}
+                        <button className="text-button" onClick={() => changeTab('settings')}>
+                          {translate(settings.language, 'adjustDefaults')}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          ) : tab === 'week' ? (
+            <WeekPlan
+              language={settings.language}
+              plans={weekPlans}
+              routeName={routeName}
+              onOpenSettings={() => changeTab('settings')}
+            />
+          ) : (
+            <SettingsPanel
+              settings={settings}
+              campus={campus.config}
+              buildings={campus.buildings}
+              gtfsUpdatedAt={snapshot?.fetchedAt}
+              refreshing={refreshing}
+              feed={snapshot?.feed}
+              routeFamilies={campus.routeFamilies}
+              classes={classes}
+              onSettings={setSettings}
+              onImportClasses={importClasses}
+              onRefresh={() => void refreshGtfs(true)}
+            />
+          )}
+        </main>
+
+        <nav className="bottom-nav" aria-label={translate(settings.language, 'primaryNavigation')}>
+          <button className={tab === 'home' ? 'active' : ''} onClick={() => changeTab('home')}>
+            <span>⌂</span>
+            {translate(settings.language, 'nextTrip')}
+          </button>
+          <button className={tab === 'week' ? 'active' : ''} onClick={() => changeTab('week')}>
+            <span>▦</span>
+            {translate(settings.language, 'weekPlanNav')}
+          </button>
+          <button
+            className={tab === 'settings' ? 'active' : ''}
+            onClick={() => changeTab('settings')}
+          >
+            <span>⚙</span>
+            {translate(settings.language, 'settings')}
+          </button>
+        </nav>
+      </div>
+
+      {tab === 'live-trip-map' && recommended && (
+        <LiveTripMap
+          language={settings.language}
+          routeName={recommendedRouteName}
+          progress={liveTripProgress}
+          home={settings.home}
+          destination={destinationBuilding}
+          onClose={() => changeTab('home')}
+          onOpenOfficial={() => changeTab('official-map')}
+        />
+      )}
+
+      {tab === 'official-map' && campus.config.liveMapUrl && (
+        <LiveTransitMap
+          url={campus.config.liveMapUrl}
+          language={settings.language}
+          onClose={() => changeTab('home')}
+        />
+      )}
+    </>
   );
 }

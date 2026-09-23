@@ -237,7 +237,9 @@ export function ClassDestinationField({
   if (isAutoMode && routeFamilyId) {
     const familyDef = routeFamiliesById(routeFamilyId);
     const definitions = getFamilyStopDefinitions(routeFamilyId);
-    const candidateRouteIds = familyDef?.routeIds ?? (routeFamilyId === DUKE_LL_FAMILY_ID ? ['TL-4', 'TL-17'] : ['TL-13', 'TL-19']);
+    const candidateRouteIds =
+      familyDef?.routeIds ??
+      (routeFamilyId === DUKE_LL_FAMILY_ID ? ['TL-4', 'TL-17'] : ['TL-13', 'TL-19']);
 
     const validDownstreamDefIds = new Set<string>();
 

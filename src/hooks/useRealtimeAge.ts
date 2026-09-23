@@ -12,22 +12,23 @@ import { useEffect, useState } from 'react';
  * - Purely for UI freshness display; does not trigger network requests or expensive routing calculations.
  */
 export function useRealtimeAge(recordedAt?: Date): number | undefined {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [, setTick] = useState(0);
+  const recordedTime = recordedAt?.getTime();
 
   useEffect(() => {
-    if (!recordedAt) return;
+    if (recordedTime === undefined) return;
 
-    const tick = () => {
+    const onTick = () => {
       if (document.visibilityState === 'visible') {
-        setNowMs(Date.now());
+        setTick((t) => t + 1);
       }
     };
 
-    const timer = window.setInterval(tick, 1000);
+    const timer = window.setInterval(onTick, 1000);
 
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        setNowMs(Date.now());
+        setTick((t) => t + 1);
       }
     };
 
@@ -37,9 +38,9 @@ export function useRealtimeAge(recordedAt?: Date): number | undefined {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [recordedAt]);
+  }, [recordedTime]);
 
-  if (!recordedAt) return undefined;
+  if (recordedTime === undefined) return undefined;
 
-  return Math.max(0, Math.floor((nowMs - recordedAt.getTime()) / 1000));
+  return Math.max(0, Math.floor((Date.now() - recordedTime) / 1000));
 }

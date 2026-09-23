@@ -19,7 +19,7 @@ export const DEFAULT_FALLBACK_MAX_AGE_SECONDS = 40;
 export function applyLiveTripFallback(
   current: LiveTripProgress,
   lastKnownGood: LiveTripProgress | undefined,
-  now: Date,
+  now: Date = new Date(),
   maxFallbackAgeSeconds: number = DEFAULT_FALLBACK_MAX_AGE_SECONDS,
 ): { progress: LiveTripProgress; nextLastKnownGood: LiveTripProgress | undefined } {
   // If current progress has an active, matched vehicle and is reliable ('live' or 'stale'):

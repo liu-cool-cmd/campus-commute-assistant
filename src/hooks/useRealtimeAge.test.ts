@@ -19,4 +19,10 @@ describe('useRealtimeAge', () => {
     const html = renderToStaticMarkup(createElement(AgeConsumer, { recordedAt: past }));
     expect(html).toMatch(/1[3-5]s/);
   });
+
+  it('calculates 0s or accurate small age for very recent recordedAt without delay', () => {
+    const justNow = new Date(Date.now() - 500);
+    const html = renderToStaticMarkup(createElement(AgeConsumer, { recordedAt: justNow }));
+    expect(html).toMatch(/[0-1]s/);
+  });
 });

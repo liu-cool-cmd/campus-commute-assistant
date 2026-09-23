@@ -10,7 +10,7 @@ import {
   useMap,
 } from 'react-leaflet';
 import type { LiveTripProgress } from '../core/realtime/routeProgress';
-import type { AppLanguage, Coordinates, Location } from '../core/types';
+import type { AppLanguage, Coordinates, Location, VehiclePosition } from '../core/types';
 import { useRealtimeAge } from '../hooks/useRealtimeAge';
 import { translate } from '../i18n';
 
@@ -101,6 +101,51 @@ function FitTripController({ progress, recenterTrigger }: FitTripControllerProps
   return null;
 }
 
+interface LiveVehicleMarkerProps {
+  vehicle: VehiclePosition;
+  routeName: string;
+  language: AppLanguage;
+  isFallback: boolean;
+  icon: ReturnType<typeof divIcon>;
+}
+
+function LiveVehicleMarker({
+  vehicle,
+  routeName,
+  language,
+  isFallback,
+  icon,
+}: LiveVehicleMarkerProps) {
+  const dynamicAge = useRealtimeAge(vehicle.recordedAt) ?? vehicle.gpsAgeSeconds ?? 0;
+  return (
+    <Marker position={[vehicle.lat, vehicle.lon]} icon={icon}>
+      <Popup>
+        <strong>{vehicle.name ?? vehicle.vehicleId}</strong>
+        <br />
+        {routeName}
+        <br />
+        {isFallback ? (
+          <>
+            <span className="live-fallback-warning">
+              {translate(language, 'lastKnownPosition')}
+            </span>
+            <br />
+            {translate(language, 'lastGpsAge', { seconds: dynamicAge })}
+          </>
+        ) : (
+          translate(language, 'gpsUpdated', { seconds: dynamicAge })
+        )}
+        {vehicle.isDelayed ? (
+          <>
+            <br />
+            {translate(language, 'reportedDelayed')}
+          </>
+        ) : null}
+      </Popup>
+    </Marker>
+  );
+}
+
 export function LiveTripMap({
   language,
   routeName,
@@ -175,38 +220,17 @@ export function LiveTripMap({
             />
 
             {visibleVehicles.map((vehicle) => {
-              const isFallback =
+              const isVehicleFallback =
                 Boolean(progress.isFallback) && vehicle.vehicleId === progress.vehicle?.vehicleId;
               return (
-                <Marker
+                <LiveVehicleMarker
                   key={vehicle.vehicleId}
-                  position={[vehicle.lat, vehicle.lon]}
-                  icon={vehicleIcon(vehicle.bearing, isFallback)}
-                >
-                  <Popup>
-                    <strong>{vehicle.name ?? vehicle.vehicleId}</strong>
-                    <br />
-                    {routeName}
-                    <br />
-                    {isFallback ? (
-                      <>
-                        <span className="live-fallback-warning">
-                          {translate(language, 'lastKnownPosition')}
-                        </span>
-                        <br />
-                        {translate(language, 'lastGpsAge', { seconds: dynamicAge })}
-                      </>
-                    ) : (
-                      translate(language, 'gpsUpdated', { seconds: dynamicAge })
-                    )}
-                    {vehicle.isDelayed ? (
-                      <>
-                        <br />
-                        {translate(language, 'reportedDelayed')}
-                      </>
-                    ) : null}
-                  </Popup>
-                </Marker>
+                  vehicle={vehicle}
+                  routeName={routeName}
+                  language={language}
+                  isFallback={isVehicleFallback}
+                  icon={vehicleIcon(vehicle.bearing, isVehicleFallback)}
+                />
               );
             })}
             {progress.boardingStop && (

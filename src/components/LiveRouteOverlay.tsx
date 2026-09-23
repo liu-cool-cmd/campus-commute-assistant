@@ -50,11 +50,14 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
     return locations;
   }, [progress.boardingStop, progress.arrivalStop, progress.vehicle, progress.route?.polyline]);
 
+  const calcRef = useRef(calculateTargetLocations);
+  calcRef.current = calculateTargetLocations;
+
   // Initial fit when trip changes
   useEffect(() => {
     if (tripKey && tripKey !== lastTripKeyRef.current) {
       lastTripKeyRef.current = tripKey;
-      const targetLocations = calculateTargetLocations();
+      const targetLocations = calcRef.current();
       if (targetLocations.length) {
         map.fitBounds(latLngBounds(targetLocations.map((l) => [l.lat, l.lon])), {
           padding: [24, 24],
@@ -63,7 +66,7 @@ function MiniMapViewportController({ progress }: MiniMapViewportControllerProps)
         });
       }
     }
-  }, [tripKey, calculateTargetLocations, map]);
+  }, [tripKey, map]);
 
   // Follow vehicle smoothly if it approaches boundary or moves out of the comfortable viewport
   useEffect(() => {

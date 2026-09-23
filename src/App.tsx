@@ -53,6 +53,24 @@ const classDate = (date: Date, language: UserSettings['language']) =>
 const classTime = (date: Date, language: UserSettings['language']) =>
   new Intl.DateTimeFormat(localeFor(language), { hour: 'numeric', minute: '2-digit' }).format(date);
 
+function areTransitSelectionsEqual(a: TransitSelection[], b: TransitSelection[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const itemA = a[i];
+    const itemB = b[i];
+    if (!itemA || !itemB) return false;
+    if (
+      itemA.routeId !== itemB.routeId ||
+      itemA.originStopId !== itemB.originStopId ||
+      itemA.destinationStopId !== itemB.destinationStopId
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export default function App() {
   const [tab, setTab] = useState<'home' | 'week' | 'settings' | 'live-trip-map' | 'official-map'>(
     'home',
@@ -184,9 +202,10 @@ export default function App() {
         : undefined,
     [destinationStopId, settings.homeTransit?.originStopId, settings.homeTransit?.routeId],
   );
+  const transitSelectionsRef = useRef<TransitSelection[]>([]);
   const transitSelections = useMemo(() => {
     if (!transitSelection || !snapshot || !nextClass) return [];
-    return campus.resolveTransitSelections
+    const resolved = campus.resolveTransitSelections
       ? campus.resolveTransitSelections(
           transitSelection,
           snapshot.feed,
@@ -195,6 +214,11 @@ export default function App() {
           realtimeSnapshot,
         )
       : [transitSelection];
+    if (areTransitSelectionsEqual(transitSelectionsRef.current, resolved)) {
+      return transitSelectionsRef.current;
+    }
+    transitSelectionsRef.current = resolved;
+    return resolved;
   }, [nextClass, realtimeSnapshot, settings.homeTransit?.routeFamilyId, snapshot, transitSelection]);
 
   useEffect(() => {
@@ -317,21 +341,22 @@ export default function App() {
         displayStops: [],
       };
     }
+    const currentTime = new Date();
     const raw = calculateLiveTripProgress({
       snapshot: realtimeSnapshot,
       routeId: recommended.route.id,
       boardingStopId: recommended.originStop.id,
       arrivalStopId: recommended.destinationStop.id,
-      now,
+      now: currentTime,
     });
     const { progress, nextLastKnownGood } = applyLiveTripFallback(
       raw,
       lastKnownGoodRef.current,
-      now,
+      currentTime,
     );
     lastKnownGoodRef.current = nextLastKnownGood;
     return progress;
-  }, [now, realtimeSnapshot, recommended]);
+  }, [realtimeSnapshot, recommended]);
 
   const weekPlans = useMemo(
     () =>
@@ -352,16 +377,32 @@ export default function App() {
     void syncAndroidWidgets(weekPlans, settings.language, routeName).catch(() => undefined);
   }, [hydrated, settings.language, weekPlans]);
 
+  const lastScheduledKeyRef = useRef<string>('');
   useEffect(() => {
-    setNotificationScheduled(false);
-    if (nextClass && recommended) {
-      void scheduleCommuteNotification(
-        nextClass,
-        recommended,
-        settings.language,
-        recommendedRouteName,
-      ).then(setNotificationScheduled);
+    if (!nextClass || !recommended) {
+      lastScheduledKeyRef.current = '';
+      setNotificationScheduled(false);
+      return;
     }
+    const scheduleKey = `${nextClass.id}:${recommended.trip.id}:${recommended.departureTime.getTime()}:${recommended.leaveAt.getTime()}:${recommendedRouteName}:${settings.language}`;
+    if (lastScheduledKeyRef.current === scheduleKey) {
+      return;
+    }
+    lastScheduledKeyRef.current = scheduleKey;
+    let cancelled = false;
+    void scheduleCommuteNotification(
+      nextClass,
+      recommended,
+      settings.language,
+      recommendedRouteName,
+    ).then((scheduled) => {
+      if (!cancelled) {
+        setNotificationScheduled(scheduled);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [nextClass, recommended, recommendedRouteName, settings.language]);
 
   const importClasses = (events: ClassEvent[]) => {

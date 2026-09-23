@@ -1,6 +1,6 @@
 import { getDownstreamStops } from '../../core/gtfs/selection';
 import { isServiceActive } from '../../core/gtfs/service';
-import { dateInTimezone } from '../../core/gtfs/time';
+import { dateInTimezone, secondsOfDayInTimezone } from '../../core/gtfs/time';
 import type {
   CampusRouteFamily,
   GtfsFeed,
@@ -448,8 +448,7 @@ export function resolveDukeTransitSelections(
   if (!family) return [selection];
 
   const serviceDate = dateInTimezone(commuteAt, 'America/New_York');
-  const commuteSeconds =
-    commuteAt.getHours() * 3600 + commuteAt.getMinutes() * 60 + commuteAt.getSeconds();
+  const commuteSeconds = secondsOfDayInTimezone(commuteAt, 'America/New_York');
 
   // Group stop times by trip
   const timesByTrip = new Map<string, StopTime[]>();

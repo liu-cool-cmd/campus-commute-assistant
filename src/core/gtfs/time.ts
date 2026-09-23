@@ -52,6 +52,11 @@ function timezoneParts(date: Date, timezone: string): number[] {
   return [get('year'), get('month'), get('day'), get('hour'), get('minute'), get('second')];
 }
 
+export function secondsOfDayInTimezone(date: Date, timezone: string): number {
+  const [, , , hour = 0, minute = 0, second = 0] = timezoneParts(date, timezone);
+  return hour * 3600 + minute * 60 + second;
+}
+
 export function serviceTimeToDate(
   serviceDate: string,
   secondsAfterMidnight: number,

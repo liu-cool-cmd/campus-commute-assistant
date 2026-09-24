@@ -18,7 +18,7 @@
             android:layout_height="wrap_content"
             android:background="@drawable/widget_brand_background"
             android:text="CCA"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/widget_brand_text"
             android:textSize="9sp"
             android:textStyle="bold" />
 
@@ -31,7 +31,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:text="Next commute"
-            android:textColor="#617068"
+            android:textColor="@color/widget_text_secondary"
             android:textSize="10sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -40,13 +40,54 @@
         android:id="@+id/widget_next_class"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
+        android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:maxLines="2"
-        android:text="Next class"
-        android:textColor="#17251F"
-        android:textSize="17sp"
+        android:text="Calculus II"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="16sp"
         android:textStyle="bold" />
+
+    <!--
+      Nothing in this card is weighted or has a fixed height on purpose: a child measured with the
+      remaining space as its bound can only shrink, never push its siblings out. That is what lets
+      the card keep the leave time visible on a short card and simply drop the lines it cannot fit
+      (they measure to zero height) instead of clipping them.
+    -->
+    <LinearLayout
+        android:id="@+id/widget_next_hero"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_next_leave_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Leave"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="12sp" />
+
+        <!-- Autosized to fill the width, so the number grows with the card instead of the card
+             filling the gap with empty space. -->
+        <TextView
+            android:id="@+id/widget_next_leave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autoSizeMaxTextSize="60sp"
+            android:autoSizeMinTextSize="16sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="9:21"
+            android:textColor="@color/widget_accent"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/widget_next_location"
@@ -55,19 +96,9 @@
         android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="Campus commute"
-        android:textColor="#68766F"
+        android:text="10:05 · CIEMAS 2240"
+        android:textColor="@color/widget_text_secondary"
         android:textSize="10sp" />
-
-    <TextView
-        android:id="@+id/widget_next_leave"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
-        android:text="Open app to update"
-        android:textColor="#123C31"
-        android:textSize="15sp"
-        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/widget_next_route"
@@ -76,7 +107,22 @@
         android:layout_marginTop="1dp"
         android:ellipsize="end"
         android:maxLines="2"
-        android:text="Your saved plan appears here"
-        android:textColor="#53635B"
+        android:text="C1 · 9:25"
+        android:textColor="@color/widget_text_secondary"
         android:textSize="10sp" />
+
+    <ImageView
+        android:id="@+id/widget_next_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="6dp"
+        android:background="@color/widget_stroke"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_next_then"
+        style="@style/CommuteWidgetThen"
+        android:text="Up next"
+        android:visibility="gone" />
 </LinearLayout>

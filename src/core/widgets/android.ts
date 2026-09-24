@@ -21,6 +21,22 @@ export interface BatteryOptimizationStatus {
 const timeLabel = (date: Date, language: AppLanguage) =>
   new Intl.DateTimeFormat(localeFor(language), { hour: 'numeric', minute: '2-digit' }).format(date);
 
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const dayDifference = (from: Date, to: Date) =>
+  Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86_400_000);
+
+/**
+ * Compact day label for widget rows. The snapshot only ever covers seven days, so the weekday is
+ * unambiguous and the full date stays in `dayLabel` for accessibility.
+ */
+const shortDayLabel = (date: Date, language: AppLanguage, today: Date): string => {
+  const difference = dayDifference(today, date);
+  if (difference === 0) return translate(language, 'widgetToday');
+  if (difference === 1) return translate(language, 'widgetTomorrow');
+  return new Intl.DateTimeFormat(localeFor(language), { weekday: 'short' }).format(date);
+};
+
 export async function syncAndroidWidgets(
   plans: CommutePlan[],
   language: AppLanguage,
@@ -28,8 +44,11 @@ export async function syncAndroidWidgets(
 ): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return;
 
+  const now = new Date();
+
   const snapshot = {
-    generatedAt: Date.now(),
+    generatedAt: now.getTime(),
+    generatedAtLabel: timeLabel(now, language),
     language,
     labels: {
       next: translate(language, 'widgetNext'),
@@ -40,6 +59,9 @@ export async function syncAndroidWidgets(
       noPlans: translate(language, 'widgetNoPlans'),
       leave: translate(language, 'widgetLeave'),
       openApp: translate(language, 'widgetOpenApp'),
+      classAt: translate(language, 'widgetClassAt'),
+      upNext: translate(language, 'widgetUpNext'),
+      updated: translate(language, 'widgetUpdated'),
     },
     entries: plans.map(({ classEvent, recommendation, status }) => ({
       id: classEvent.id,
@@ -51,6 +73,7 @@ export async function syncAndroidWidgets(
         month: 'short',
         day: 'numeric',
       }).format(classEvent.startTime),
+      dayShort: shortDayLabel(classEvent.startTime, language, now),
       classTime: timeLabel(classEvent.startTime, language),
       leaveAt: recommendation?.leaveAt.getTime(),
       leaveTime: recommendation ? timeLabel(recommendation.leaveAt, language) : undefined,

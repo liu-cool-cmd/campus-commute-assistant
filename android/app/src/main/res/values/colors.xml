@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget palette. Keep in sync with values-night/colors.xml. -->
+    <color name="widget_surface">#FBFAF4</color>
+    <color name="widget_stroke">#2417251F</color>
+    <color name="widget_text_primary">#17251F</color>
+    <color name="widget_text_secondary">#68766F</color>
+    <color name="widget_accent">#123C31</color>
+    <color name="widget_brand_background">#123C31</color>
+    <color name="widget_brand_text">#FFFFFF</color>
+</resources>

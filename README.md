@@ -44,8 +44,9 @@ school can be added without forking the core engine.
 - Replace and reschedule Android local notifications when a recommendation changes.
 - Review every remaining class and its matching commute in a grouped, next-7-days plan.
 - Add five Android home-screen widgets: next commute, today, today + tomorrow, next 7 days, and a
-  compact Mini schedule with one upcoming day per line. Widgets use the same saved static-schedule
-  results as the app and support smaller launcher resize ranges.
+  compact Mini schedule with one upcoming day per line. They reuse the app's saved static-schedule
+  results, follow the launcher resize size (dragging one taller shows more plans instead of leaving
+  a gap), lead with the leave time, and follow the system light and dark theme.
 - Open Android's battery optimization management screen from Settings when device power management
   delays reminders or widget refreshes.
 - Build as a Vite web app or a Capacitor Android app without an application server.
@@ -205,6 +206,12 @@ Five widgets appear under **Campus Commute Assistant** in the Android widget pic
 after changing a calendar, stop, language, buffer, or GTFS data so it can publish a fresh local
 next-7-days snapshot. Widgets re-render the saved snapshot at most every 30 minutes and discard
 classes once their start time has passed; they do not download GTFS or run a second routing engine.
+
+Each widget measures itself and shows as many plans as fit: today and today + tomorrow are bounded
+only by how many classes remain in their window, the list widgets cap at eight rows, and the Mini
+schedule caps at one row per day. Below 180dp wide the time column is dropped and the leave time
+leads the row; the next-commute widget adds an "up next" list once it is dragged taller. The list
+footer repeats the snapshot's publish time, so a stale widget is visible without opening the app.
 
 The battery button opens Android's standard battery-optimization list. It does not silently exempt
 the app and the manifest intentionally does not request `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`,

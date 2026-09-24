@@ -20,23 +20,30 @@
         <item name="android:background">@drawable/splash</item>
     </style>
 
+    <!--
+      Widget list row. Height follows the content so a row that cannot fit shrinks instead of being
+      cut, and the text sizes below stretch up to their caps on a tall card.
+    -->
     <style name="CommuteWidgetRow">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">38dp</item>
-        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:minHeight">30dp</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:orientation">horizontal</item>
     </style>
 
     <style name="CommuteWidgetTimeColumn">
-        <item name="android:layout_width">78dp</item>
+        <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">60dp</item>
         <item name="android:orientation">vertical</item>
     </style>
 
     <style name="CommuteWidgetClassColumn">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">8dp</item>
         <item name="android:layout_weight">1</item>
         <item name="android:orientation">vertical</item>
     </style>
@@ -46,44 +53,121 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textColor">#69776F</item>
-        <item name="android:textSize">8sp</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">9sp</item>
     </style>
 
+    <!-- Bold accent line: the time the student has to leave. -->
     <style name="CommuteWidgetTime">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">#123C31</item>
-        <item name="android:textSize">11sp</item>
+        <item name="android:autoSizeMaxTextSize">14sp</item>
+        <item name="android:autoSizeMinTextSize">10sp</item>
+        <item name="android:autoSizeStepGranularity">1sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_accent</item>
+        <item name="android:textSize">12sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
     <style name="CommuteWidgetClassTitle">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:autoSizeMaxTextSize">14sp</item>
+        <item name="android:autoSizeMinTextSize">11sp</item>
+        <item name="android:autoSizeStepGranularity">1sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textColor">#17251F</item>
-        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">12sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
     <style name="CommuteWidgetDetail">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:autoSizeMaxTextSize">12sp</item>
+        <item name="android:autoSizeMinTextSize">9sp</item>
+        <item name="android:autoSizeStepGranularity">1sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textColor">#68766F</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">10sp</item>
+    </style>
+
+    <style name="CommuteWidgetFooter">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">16dp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center_vertical|end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
         <item name="android:textSize">9sp</item>
     </style>
 
+    <!-- Mini row: height follows the content like the list rows. -->
     <style name="CommuteWidgetMiniRow">
         <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">24dp</item>
-        <item name="android:ellipsize">end</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">1dp</item>
+        <item name="android:minHeight">22dp</item>
         <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+
+    <style name="CommuteWidgetMiniDay">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
-        <item name="android:textColor">#17251F</item>
+        <item name="android:minWidth">30dp</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">9sp</item>
+    </style>
+
+    <style name="CommuteWidgetMiniTime">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:autoSizeMaxTextSize">14sp</item>
+        <item name="android:autoSizeMinTextSize">10sp</item>
+        <item name="android:autoSizeStepGranularity">1sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:minWidth">34dp</item>
+        <item name="android:textColor">@color/widget_accent</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="CommuteWidgetMiniTitle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:autoSizeMaxTextSize">12sp</item>
+        <item name="android:autoSizeMinTextSize">9sp</item>
+        <item name="android:autoSizeStepGranularity">1sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">10sp</item>
+    </style>
+
+    <style name="CommuteWidgetThen">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:ellipsize">end</item>
+        <!-- "Up next" plus up to four following lines. -->
+        <item name="android:maxLines">5</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
         <item name="android:textSize">10sp</item>
     </style>
 </resources>

@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:background="@drawable/widget_brand_background"
             android:text="CCA"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/widget_brand_text"
             android:textSize="9sp"
             android:textStyle="bold" />
 
@@ -32,9 +32,107 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:text="Commute plans"
-            android:textColor="#17251F"
+            android:textColor="@color/widget_text_primary"
             android:textSize="13sp"
             android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Row count must match ROW_* in CommuteWidgetProvider.java. -->
+    <LinearLayout
+        android:id="@+id/widget_rows"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <LinearLayout android:id="@+id/widget_row_1" style="@style/CommuteWidgetRow">
+            <LinearLayout android:id="@+id/widget_row_time_column_1" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_1" style="@style/CommuteWidgetDay" android:text="Today" />
+                <TextView android:id="@+id/widget_row_time_1" style="@style/CommuteWidgetTime" android:text="Leave 9:31" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_1" style="@style/CommuteWidgetClassTitle" android:text="Calculus II" />
+                <TextView android:id="@+id/widget_row_detail_1" style="@style/CommuteWidgetDetail" android:text="C1 · Class 10:05 · CIEMAS 2240" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_2" style="@style/CommuteWidgetRow">
+            <LinearLayout android:id="@+id/widget_row_time_column_2" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_2" style="@style/CommuteWidgetDay" android:text="Today" />
+                <TextView android:id="@+id/widget_row_time_2" style="@style/CommuteWidgetTime" android:text="Leave 13:20" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_2" style="@style/CommuteWidgetClassTitle" android:text="Computer Science 201" />
+                <TextView android:id="@+id/widget_row_detail_2" style="@style/CommuteWidgetDetail" android:text="C1 · Class 13:55 · LSRC" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_3" style="@style/CommuteWidgetRow">
+            <LinearLayout android:id="@+id/widget_row_time_column_3" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_3" style="@style/CommuteWidgetDay" android:text="Wed 23" />
+                <TextView android:id="@+id/widget_row_time_3" style="@style/CommuteWidgetTime" android:text="Leave 8:05" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_3" style="@style/CommuteWidgetClassTitle" android:text="Linear Algebra" />
+                <TextView android:id="@+id/widget_row_detail_3" style="@style/CommuteWidgetDetail" android:text="C1 · Class 8:40 · CIEMAS 2240" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_4" style="@style/CommuteWidgetRow" android:visibility="gone">
+            <LinearLayout android:id="@+id/widget_row_time_column_4" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_4" style="@style/CommuteWidgetDay" />
+                <TextView android:id="@+id/widget_row_time_4" style="@style/CommuteWidgetTime" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_4" style="@style/CommuteWidgetClassTitle" />
+                <TextView android:id="@+id/widget_row_detail_4" style="@style/CommuteWidgetDetail" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_5" style="@style/CommuteWidgetRow" android:visibility="gone">
+            <LinearLayout android:id="@+id/widget_row_time_column_5" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_5" style="@style/CommuteWidgetDay" />
+                <TextView android:id="@+id/widget_row_time_5" style="@style/CommuteWidgetTime" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_5" style="@style/CommuteWidgetClassTitle" />
+                <TextView android:id="@+id/widget_row_detail_5" style="@style/CommuteWidgetDetail" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_6" style="@style/CommuteWidgetRow" android:visibility="gone">
+            <LinearLayout android:id="@+id/widget_row_time_column_6" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_6" style="@style/CommuteWidgetDay" />
+                <TextView android:id="@+id/widget_row_time_6" style="@style/CommuteWidgetTime" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_6" style="@style/CommuteWidgetClassTitle" />
+                <TextView android:id="@+id/widget_row_detail_6" style="@style/CommuteWidgetDetail" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_7" style="@style/CommuteWidgetRow" android:visibility="gone">
+            <LinearLayout android:id="@+id/widget_row_time_column_7" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_7" style="@style/CommuteWidgetDay" />
+                <TextView android:id="@+id/widget_row_time_7" style="@style/CommuteWidgetTime" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_7" style="@style/CommuteWidgetClassTitle" />
+                <TextView android:id="@+id/widget_row_detail_7" style="@style/CommuteWidgetDetail" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/widget_row_8" style="@style/CommuteWidgetRow" android:visibility="gone">
+            <LinearLayout android:id="@+id/widget_row_time_column_8" style="@style/CommuteWidgetTimeColumn">
+                <TextView android:id="@+id/widget_row_day_8" style="@style/CommuteWidgetDay" />
+                <TextView android:id="@+id/widget_row_time_8" style="@style/CommuteWidgetTime" />
+            </LinearLayout>
+            <LinearLayout style="@style/CommuteWidgetClassColumn">
+                <TextView android:id="@+id/widget_row_title_8" style="@style/CommuteWidgetClassTitle" />
+                <TextView android:id="@+id/widget_row_detail_8" style="@style/CommuteWidgetDetail" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 
     <TextView
@@ -44,75 +142,12 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="No upcoming commute plan"
-        android:textColor="#68766F"
+        android:textColor="@color/widget_text_secondary"
         android:textSize="12sp"
         android:visibility="gone" />
 
-    <LinearLayout
-        android:id="@+id/widget_row_1"
-        style="@style/CommuteWidgetRow">
-        <LinearLayout android:id="@+id/widget_row_time_column_1" style="@style/CommuteWidgetTimeColumn">
-            <TextView android:id="@+id/widget_row_day_1" style="@style/CommuteWidgetDay" android:text="TODAY" />
-            <TextView android:id="@+id/widget_row_time_1" style="@style/CommuteWidgetTime" android:text="10:05 AM" />
-        </LinearLayout>
-        <LinearLayout style="@style/CommuteWidgetClassColumn">
-            <TextView android:id="@+id/widget_row_title_1" style="@style/CommuteWidgetClassTitle" android:text="Next class" />
-            <TextView android:id="@+id/widget_row_detail_1" style="@style/CommuteWidgetDetail" android:text="Leave 9:31 · C1" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/widget_row_2" style="@style/CommuteWidgetRow">
-        <LinearLayout android:id="@+id/widget_row_time_column_2" style="@style/CommuteWidgetTimeColumn">
-            <TextView android:id="@+id/widget_row_day_2" style="@style/CommuteWidgetDay" android:text="TOMORROW" />
-            <TextView android:id="@+id/widget_row_time_2" style="@style/CommuteWidgetTime" android:text="1:25 PM" />
-        </LinearLayout>
-        <LinearLayout style="@style/CommuteWidgetClassColumn">
-            <TextView android:id="@+id/widget_row_title_2" style="@style/CommuteWidgetClassTitle" android:text="Upcoming class" />
-            <TextView android:id="@+id/widget_row_detail_2" style="@style/CommuteWidgetDetail" android:text="Open app to update" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/widget_row_3" style="@style/CommuteWidgetRow" android:visibility="gone">
-        <LinearLayout android:id="@+id/widget_row_time_column_3" style="@style/CommuteWidgetTimeColumn">
-            <TextView android:id="@+id/widget_row_day_3" style="@style/CommuteWidgetDay" />
-            <TextView android:id="@+id/widget_row_time_3" style="@style/CommuteWidgetTime" />
-        </LinearLayout>
-        <LinearLayout style="@style/CommuteWidgetClassColumn">
-            <TextView android:id="@+id/widget_row_title_3" style="@style/CommuteWidgetClassTitle" />
-            <TextView android:id="@+id/widget_row_detail_3" style="@style/CommuteWidgetDetail" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/widget_row_4" style="@style/CommuteWidgetRow" android:visibility="gone">
-        <LinearLayout android:id="@+id/widget_row_time_column_4" style="@style/CommuteWidgetTimeColumn">
-            <TextView android:id="@+id/widget_row_day_4" style="@style/CommuteWidgetDay" />
-            <TextView android:id="@+id/widget_row_time_4" style="@style/CommuteWidgetTime" />
-        </LinearLayout>
-        <LinearLayout style="@style/CommuteWidgetClassColumn">
-            <TextView android:id="@+id/widget_row_title_4" style="@style/CommuteWidgetClassTitle" />
-            <TextView android:id="@+id/widget_row_detail_4" style="@style/CommuteWidgetDetail" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/widget_row_5" style="@style/CommuteWidgetRow" android:visibility="gone">
-        <LinearLayout android:id="@+id/widget_row_time_column_5" style="@style/CommuteWidgetTimeColumn">
-            <TextView android:id="@+id/widget_row_day_5" style="@style/CommuteWidgetDay" />
-            <TextView android:id="@+id/widget_row_time_5" style="@style/CommuteWidgetTime" />
-        </LinearLayout>
-        <LinearLayout style="@style/CommuteWidgetClassColumn">
-            <TextView android:id="@+id/widget_row_title_5" style="@style/CommuteWidgetClassTitle" />
-            <TextView android:id="@+id/widget_row_detail_5" style="@style/CommuteWidgetDetail" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout android:id="@+id/widget_row_6" style="@style/CommuteWidgetRow" android:visibility="gone">
-        <LinearLayout android:id="@+id/widget_row_time_column_6" style="@style/CommuteWidgetTimeColumn">
-            <TextView android:id="@+id/widget_row_day_6" style="@style/CommuteWidgetDay" />
-            <TextView android:id="@+id/widget_row_time_6" style="@style/CommuteWidgetTime" />
-        </LinearLayout>
-        <LinearLayout style="@style/CommuteWidgetClassColumn">
-            <TextView android:id="@+id/widget_row_title_6" style="@style/CommuteWidgetClassTitle" />
-            <TextView android:id="@+id/widget_row_detail_6" style="@style/CommuteWidgetDetail" />
-        </LinearLayout>
-    </LinearLayout>
+    <TextView
+        android:id="@+id/widget_footer"
+        style="@style/CommuteWidgetFooter"
+        android:visibility="gone" />
 </LinearLayout>

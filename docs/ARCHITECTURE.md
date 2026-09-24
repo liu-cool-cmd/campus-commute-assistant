@@ -100,6 +100,13 @@ refresh after app-side changes, and request a periodic render no more frequently
 30-minute widget minimum. Opening the app is required to recompute the snapshot after underlying
 course, preference, or feed data changes.
 
+Entry selection inside a provider is purely semantic (the mode's day window); how many _rows_ are
+painted comes from one capacity calculation that mirrors the layout's dp constants (`INSET_DP` for
+the background padding, the header and footer heights, and the row pitch). Because that calculation
+is the only cap, resizing a widget taller shows more plans rather than clipping the last row or
+leaving a gap at the bottom, and a widget too narrow for two columns falls back to a single line per
+plan that leads with the leave time.
+
 The custom Capacitor bridge is deliberately narrow: refresh all widgets, report whether Android
 battery optimization applies, and open the standard battery-optimization settings list. The app
 does not request direct Doze exemption permission or change device power policy itself.

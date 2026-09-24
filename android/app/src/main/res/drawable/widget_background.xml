@@ -3,6 +3,6 @@
     <solid android:color="@color/widget_surface" />
     <corners android:radius="20dp" />
     <stroke android:width="1dp" android:color="@color/widget_stroke" />
-    <!-- Keep the padding in sync with INSET_DP in CommuteWidgetProvider.java. -->
+    <!-- Card padding, part of the widget's own styling. -->
     <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
 </shape>

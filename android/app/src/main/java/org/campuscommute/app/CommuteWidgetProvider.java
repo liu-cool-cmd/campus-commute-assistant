@@ -41,10 +41,6 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
 
     private static final int ULTRA_NARROW_WIDTH_DP = 100;
     private static final int NARROW_WIDTH_DP = 180;
-    /** Below this height the list header is dropped so a row still fits. */
-    private static final int HEADER_MIN_HEIGHT_DP = 110;
-    private static final int FOOTER_MIN_HEIGHT_DP = 170;
-    private static final int MINI_HEADER_MIN_WIDTH_DP = 140;
 
     /**
      * NEXT renders every line and lets the layout drop what does not fit: a child measured with the
@@ -207,7 +203,7 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
             mode == Mode.NEXT
                 ? renderNext(context, snapshot, entries, size)
                 : mode == Mode.MINI
-                    ? renderMini(context, snapshot, entries, size)
+                    ? renderMini(context, snapshot, entries)
                     : renderList(context, snapshot, entries, mode, size);
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -314,6 +310,15 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         return labels(snapshot).optString(key, fallback);
     }
 
+    /** The publish time of the snapshot, pinned to the bottom of every card that has room. */
+    private static String footerText(JSONObject snapshot) {
+        return joinNonEmpty(
+            label(snapshot, "updated", "Updated"),
+            snapshot.optString("generatedAtLabel"),
+            " "
+        );
+    }
+
     /**
      * The leave time lives in an auto-sized block (see widget_next_commute.xml), so the number grows
      * with the card and the layout absorbs whatever the fixed lines leave over.
@@ -328,17 +333,16 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_title, label(snapshot, "next", "Next commute"));
         if (entries.isEmpty()) {
             String empty = label(snapshot, "noPlans", "No upcoming commute plan");
-            views.setTextViewText(R.id.widget_next_class, empty);
-            views.setTextViewText(
-                R.id.widget_next_location,
-                label(snapshot, "openApp", "Open app")
-            );
-            views.setViewVisibility(R.id.widget_next_location, View.VISIBLE);
+            views.setTextViewText(R.id.widget_next_empty, empty);
+            views.setViewVisibility(R.id.widget_next_empty, View.VISIBLE);
+            views.setViewVisibility(R.id.widget_next_class, View.GONE);
             views.setViewVisibility(R.id.widget_next_hero, View.GONE);
+            views.setViewVisibility(R.id.widget_next_location, View.GONE);
             views.setViewVisibility(R.id.widget_next_route, View.GONE);
             views.setViewVisibility(R.id.widget_next_divider, View.GONE);
             views.setViewVisibility(R.id.widget_next_then, View.GONE);
-            views.setContentDescription(R.id.widget_next_class, empty);
+            views.setViewVisibility(R.id.widget_next_footer, View.GONE);
+            views.setContentDescription(R.id.widget_next_empty, empty);
             return views;
         }
 
@@ -354,6 +358,10 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
             joinNonEmpty(entry.optString("classTime"), entry.optString("location"), " · ")
         );
         views.setViewVisibility(R.id.widget_next_hero, View.VISIBLE);
+        views.setViewVisibility(R.id.widget_next_empty, View.GONE);
+        // The layout drops this by itself when a card is too short for its content.
+        views.setTextViewText(R.id.widget_next_footer, footerText(snapshot));
+        views.setViewVisibility(R.id.widget_next_footer, View.VISIBLE);
 
         String leaveTime = entry.optString("leaveTime");
         if (leaveTime.isEmpty()) {
@@ -437,8 +445,7 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
         boolean ultraNarrow = size.widthDp < ULTRA_NARROW_WIDTH_DP;
         boolean narrow = size.widthDp < NARROW_WIDTH_DP;
         boolean populated = !entries.isEmpty();
-        boolean headerVisible = !ultraNarrow && size.heightDp >= HEADER_MIN_HEIGHT_DP;
-        boolean footerVisible = populated && !ultraNarrow && size.heightDp >= FOOTER_MIN_HEIGHT_DP;
+        boolean footerVisible = populated;
 
         String titleKey = mode == Mode.TODAY
             ? "today"
@@ -447,20 +454,10 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
             ? "Today"
             : mode == Mode.TODAY_TOMORROW ? "Today + tomorrow" : "Next 7 days";
         views.setTextViewText(R.id.widget_title, label(snapshot, titleKey, fallback));
-        views.setViewVisibility(R.id.widget_header, headerVisible ? View.VISIBLE : View.GONE);
-        views.setViewVisibility(R.id.widget_brand, narrow ? View.GONE : View.VISIBLE);
-        views.setTextViewText(R.id.widget_empty, label(snapshot, "noPlans", "No upcoming commute plan"));
         views.setViewVisibility(R.id.widget_empty, populated ? View.GONE : View.VISIBLE);
         views.setViewVisibility(R.id.widget_rows, populated ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_footer, footerVisible ? View.VISIBLE : View.GONE);
-        views.setTextViewText(
-            R.id.widget_footer,
-            joinNonEmpty(
-                label(snapshot, "updated", "Updated"),
-                snapshot.optString("generatedAtLabel"),
-                " "
-            )
-        );
+        views.setTextViewText(R.id.widget_footer, footerText(snapshot));
 
         long now = System.currentTimeMillis();
         for (int index = 0; index < ROW_CONTAINERS.length; index++) {
@@ -506,24 +503,19 @@ public abstract class CommuteWidgetProvider extends AppWidgetProvider {
     private static RemoteViews renderMini(
         Context context,
         JSONObject snapshot,
-        List<JSONObject> entries,
-        WidgetSize size
+        List<JSONObject> entries
     ) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_mini_plan);
         boolean populated = !entries.isEmpty();
-        boolean headerVisible = size.widthDp >= MINI_HEADER_MIN_WIDTH_DP &&
-            size.heightDp >= HEADER_MIN_HEIGHT_DP;
         views.setTextViewText(R.id.widget_mini_title, label(snapshot, "mini", "Mini schedule"));
-        views.setViewVisibility(
-            R.id.widget_mini_header,
-            headerVisible ? View.VISIBLE : View.GONE
-        );
         views.setTextViewText(
             R.id.widget_mini_empty,
             label(snapshot, "noPlans", "No upcoming commute plan")
         );
         views.setViewVisibility(R.id.widget_mini_empty, populated ? View.GONE : View.VISIBLE);
         views.setViewVisibility(R.id.widget_mini_rows, populated ? View.VISIBLE : View.GONE);
+        views.setTextViewText(R.id.widget_mini_footer, footerText(snapshot));
+        views.setViewVisibility(R.id.widget_mini_footer, populated ? View.VISIBLE : View.GONE);
 
         for (int index = 0; index < MINI_ROWS.length; index++) {
             boolean visible = populated && index < entries.size();

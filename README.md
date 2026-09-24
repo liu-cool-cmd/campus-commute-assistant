@@ -210,8 +210,9 @@ classes once their start time has passed; they do not download GTFS or run a sec
 Each widget measures itself and shows as many plans as fit: today and today + tomorrow are bounded
 only by how many classes remain in their window, the list widgets cap at eight rows, and the Mini
 schedule caps at one row per day. Below 180dp wide the time column is dropped and the leave time
-leads the row; the next-commute widget adds an "up next" list once it is dragged taller. The list
-footer repeats the snapshot's publish time, so a stale widget is visible without opening the app.
+leads the row; the next-commute widget adds an "up next" list once it is dragged taller. Every card
+keeps its title and pins the snapshot's publish time to its bottom edge, so a stale widget is visible
+without opening the app.
 
 The battery button opens Android's standard battery-optimization list. It does not silently exempt
 the app and the manifest intentionally does not request `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`,

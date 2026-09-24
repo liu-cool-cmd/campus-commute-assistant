@@ -4,36 +4,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:gravity="center_vertical"
     android:orientation="vertical">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/widget_brand_background"
-            android:text="CCA"
-            android:textColor="@color/widget_brand_text"
-            android:textSize="9sp"
-            android:textStyle="bold" />
+    <LinearLayout style="@style/CommuteWidgetHeader">
+        <TextView style="@style/CommuteWidgetBadge" />
 
         <TextView
             android:id="@+id/widget_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Next commute"
-            android:textColor="@color/widget_text_secondary"
-            android:textSize="10sp"
-            android:textStyle="bold" />
+            style="@style/CommuteWidgetTitle"
+            android:text="Next commute" />
     </LinearLayout>
 
     <TextView
@@ -41,6 +20,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
+        android:autoSizeMaxTextSize="20sp"
+        android:autoSizeMinTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"
+        android:autoSizeTextType="uniform"
         android:ellipsize="end"
         android:maxLines="2"
         android:text="Calculus II"
@@ -48,12 +31,14 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
-    <!--
-      Nothing in this card is weighted or has a fixed height on purpose: a child measured with the
-      remaining space as its bound can only shrink, never push its siblings out. That is what lets
-      the card keep the leave time visible on a short card and simply drop the lines it cannot fit
-      (they measure to zero height) instead of clipping them.
-    -->
+    <ImageView style="@style/CommuteWidgetSpacer" />
+
+    <TextView
+        android:id="@+id/widget_next_empty"
+        style="@style/CommuteWidgetEmpty"
+        android:text="No upcoming commute plan"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/widget_next_hero"
         android:layout_width="match_parent"
@@ -94,6 +79,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
+        android:autoSizeMaxTextSize="12sp"
+        android:autoSizeMinTextSize="9sp"
+        android:autoSizeStepGranularity="1sp"
+        android:autoSizeTextType="uniform"
         android:ellipsize="end"
         android:maxLines="1"
         android:text="10:05 · CIEMAS 2240"
@@ -105,6 +94,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="1dp"
+        android:autoSizeMaxTextSize="12sp"
+        android:autoSizeMinTextSize="9sp"
+        android:autoSizeStepGranularity="1sp"
+        android:autoSizeTextType="uniform"
         android:ellipsize="end"
         android:maxLines="2"
         android:text="C1 · 9:25"
@@ -124,5 +117,12 @@
         android:id="@+id/widget_next_then"
         style="@style/CommuteWidgetThen"
         android:text="Up next"
+        android:visibility="gone" />
+
+    <ImageView style="@style/CommuteWidgetSpacer" />
+
+    <TextView
+        android:id="@+id/widget_next_footer"
+        style="@style/CommuteWidgetFooter"
         android:visibility="gone" />
 </LinearLayout>

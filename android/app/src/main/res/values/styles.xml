@@ -21,8 +21,65 @@
     </style>
 
     <!--
-      Widget list row. Height follows the content so a row that cannot fit shrinks instead of being
-      cut, and the text sizes below stretch up to their caps on a tall card.
+      Shared widget chrome. Every card uses these three styles so the header cannot drift apart
+      between layouts. The header is never hidden: a card that cannot fit its content drops the
+      content, not its own title.
+    -->
+    <style name="CommuteWidgetHeader">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+
+    <style name="CommuteWidgetBadge">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/widget_brand_background</item>
+        <item name="android:text">CCA</item>
+        <item name="android:textColor">@color/widget_brand_text</item>
+        <item name="android:textSize">9sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="CommuteWidgetTitle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!--
+      Weighted blank between the header, the content and the footer. The two of them split the
+      leftover height around the content, which keeps the title pinned to the top and the publish
+      time pinned to the bottom edge without any provider code knowing the card height.
+    -->
+    <style name="CommuteWidgetSpacer">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+
+    <style name="CommuteWidgetEmpty">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">3</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <!--
+      Widget list row. Height follows the content so a row that cannot fit gives up its own space
+      instead of pushing its siblings out, and the text sizes below stretch up to their caps on a
+      tall card.
     -->
     <style name="CommuteWidgetRow">
         <item name="android:layout_width">match_parent</item>

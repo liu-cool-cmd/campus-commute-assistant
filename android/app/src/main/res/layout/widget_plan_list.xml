@@ -6,44 +6,22 @@
     android:background="@drawable/widget_background"
     android:orientation="vertical">
 
-    <LinearLayout
-        android:id="@+id/widget_header"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/widget_brand"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/widget_brand_background"
-            android:text="CCA"
-            android:textColor="@color/widget_brand_text"
-            android:textSize="9sp"
-            android:textStyle="bold" />
+    <LinearLayout android:id="@+id/widget_header" style="@style/CommuteWidgetHeader">
+        <TextView android:id="@+id/widget_brand" style="@style/CommuteWidgetBadge" />
 
         <TextView
             android:id="@+id/widget_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Commute plans"
-            android:textColor="@color/widget_text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            style="@style/CommuteWidgetTitle"
+            android:text="Commute plans" />
     </LinearLayout>
+
+    <ImageView style="@style/CommuteWidgetSpacer" />
 
     <!-- Row count must match ROW_* in CommuteWidgetProvider.java. -->
     <LinearLayout
         android:id="@+id/widget_rows"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center_vertical"
+        android:layout_height="wrap_content"
         android:orientation="vertical">
 
         <LinearLayout android:id="@+id/widget_row_1" style="@style/CommuteWidgetRow">
@@ -137,14 +115,11 @@
 
     <TextView
         android:id="@+id/widget_empty"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
+        style="@style/CommuteWidgetEmpty"
         android:text="No upcoming commute plan"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="12sp"
         android:visibility="gone" />
+
+    <ImageView style="@style/CommuteWidgetSpacer" />
 
     <TextView
         android:id="@+id/widget_footer"

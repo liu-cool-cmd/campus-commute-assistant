@@ -6,11 +6,13 @@
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
+    Roboto,
     sans-serif;
   color: #17251f;
   background: #e9eee9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   --ink: #17251f;
   --forest: #123c31;
   --mint: #d6e9dc;
@@ -115,6 +117,21 @@ main {
   padding: 22px;
 }
 
+time,
+.time,
+.tabular-nums,
+.journey-grid strong,
+.recommendation-fact strong,
+.week-leave-time strong,
+.week-class-row time,
+.next-class-header time,
+.alternative-card-times strong,
+.alternative-card-times span,
+.live-route-metrics,
+.live-mini-map-compass {
+  font-variant-numeric: tabular-nums;
+}
+
 h1,
 h2,
 p {
@@ -122,17 +139,18 @@ p {
 }
 h1,
 h2 {
-  font-family: Georgia, 'Times New Roman', serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
+  font-weight: 700;
 }
 h1 {
   margin-bottom: 6px;
-  font-size: clamp(1.7rem, 7vw, 2.35rem);
-  line-height: 1.04;
+  font-size: clamp(1.6rem, 6.5vw, 2.2rem);
+  line-height: 1.12;
 }
 h2 {
   margin-bottom: 0;
-  font-size: 1.7rem;
+  font-size: 1.55rem;
+  line-height: 1.2;
 }
 .eyebrow {
   margin-bottom: 8px;
@@ -216,21 +234,32 @@ h2 {
 }
 
 .next-class-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 16px;
-  align-items: start;
   padding: 4px 2px 22px;
 }
-.next-class-card p:last-child {
-  margin: 0;
-  color: #65736c;
+.next-class-eyebrow {
+  margin-bottom: 6px;
 }
-.next-class-card time {
-  padding-top: 24px;
+.next-class-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.next-class-header h1 {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.next-class-header time {
   color: var(--forest);
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+.next-class-location {
+  margin: 6px 0 0;
+  color: #65736c;
+  font-size: 0.88rem;
 }
 
 .recommendation-card {
@@ -244,6 +273,7 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: start;
+  gap: 12px;
   padding: 22px 22px 18px;
   background: rgba(255, 255, 255, 0.035);
 }
@@ -255,14 +285,25 @@ h2 {
 }
 .recommendation-card .eyebrow {
   color: #a9c6b7;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.recommendation-card .eyebrow .route-alert-badge,
+.recommendation-card .eyebrow .arrival-tag {
+  margin-inline-start: 0;
 }
 .confidence {
   flex: 0 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  padding: 5px 8px;
-  font-size: 0.62rem;
+  padding: 4px 8px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  line-height: 1.2;
 }
 .confidence-high {
   color: #bcf0cf;
@@ -274,6 +315,8 @@ h2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   row-gap: 14px;
+  column-gap: 12px;
+  align-items: baseline;
   padding: 20px 22px;
   font-size: 0.85rem;
 }
@@ -283,6 +326,7 @@ h2 {
 }
 .journey-grid strong {
   text-align: right;
+  white-space: nowrap;
 }
 .journey-grid .class-row {
   margin-top: 8px;
@@ -382,42 +426,45 @@ h2 {
 }
 .alternative-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 9px;
-  padding: 15px 16px;
+  padding: 13px 16px;
   border: 1px solid var(--line);
   border-radius: 15px;
   background: white;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
 }
-.notice-card,
-.transit-selection-card,
-.alternative-card,
-.week-plan-card,
-.battery-settings,
-.live-route-overlay {
-  min-width: 0;
-  max-width: 100%;
-}
-.alternative-card > *,
-.live-route-heading > *,
-.live-route-summary,
-.live-route-age,
-.live-route-unavailable {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.alternative-card div {
+.alternative-card-header {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
 }
-.alternative-card .eyebrow {
+.alternative-card-header .eyebrow {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.alternative-card > span {
+.alternative-card-times {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.alternative-card-times strong {
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.alternative-card-times span {
   color: #647169;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.alternative-late {
+  color: #a2382b;
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 .action-row {
   display: flex;
@@ -596,8 +643,8 @@ h2 {
 }
 .settings-subsection h2 {
   margin: 2px 0 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 .settings-subsection .eyebrow {
   margin: 0;
@@ -749,8 +796,8 @@ h2 {
   padding: 0 3px;
 }
 .week-day > header strong {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.12rem;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 .week-day > header span {
   color: #748078;
@@ -768,7 +815,7 @@ h2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
-  align-items: start;
+  align-items: baseline;
   padding: 15px 16px 12px;
 }
 .week-class-row > div {
@@ -780,6 +827,10 @@ h2 {
 .week-class-row span {
   overflow-wrap: anywhere;
 }
+.week-class-row strong {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
 .week-class-row span {
   color: #69776f;
   font-size: 0.75rem;
@@ -788,6 +839,8 @@ h2 {
   color: var(--forest);
   font-weight: 800;
   white-space: nowrap;
+  font-size: 0.92rem;
+  line-height: 1.25;
 }
 .week-commute-summary {
   display: grid;
@@ -808,8 +861,9 @@ h2 {
 }
 .week-leave-time strong {
   color: var(--forest);
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 .week-route-line {
   display: flex;
@@ -818,14 +872,17 @@ h2 {
   gap: 5px 7px;
   align-items: center;
   color: #526159;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
 }
 .week-route-badge {
-  padding: 3px 7px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: var(--forest);
   color: white;
   font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
 }
 .week-plan-missing {
   padding: 12px 16px 15px;
@@ -908,7 +965,6 @@ h2 {
   width: 100%;
 }
 .live-route-heading .live-route-name {
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.15rem;
   color: var(--forest);
   font-weight: 700;
@@ -1092,8 +1148,8 @@ h2 {
 }
 .live-map-header > strong {
   overflow: hidden;
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.05rem;
+  font-weight: 700;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1318,17 +1374,20 @@ h2 {
 
 /* v0.4 transit alerts */
 .route-alert-badge {
-  margin-left: 7px;
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 6px;
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--clay);
   color: white;
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
-  vertical-align: middle;
+  vertical-align: 1px;
+  line-height: 1.2;
 }
 .alerts-summary {
   display: grid;
@@ -1467,14 +1526,23 @@ h2 {
   font-weight: 700;
 }
 .arrival-tag {
-  margin-left: 7px;
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 6px;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 800;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
-  vertical-align: middle;
+  vertical-align: 1px;
+  line-height: 1.2;
+}
+.week-route-line .route-alert-badge,
+.alternative-card-header .route-alert-badge,
+.alternative-card-header .arrival-tag {
+  margin-inline-start: 0;
 }
 .arrival-tag-at-risk {
   background: #fef4e6;
@@ -1504,7 +1572,8 @@ h2 {
 }
 .recommendation-fact strong {
   color: white;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 .recommendation-details {

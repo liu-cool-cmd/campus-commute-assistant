@@ -831,17 +831,17 @@ export default function App() {
               ) : (
                 <>
                   <section className="next-class-card">
-                    <div>
-                      <p className="eyebrow">
-                        {translate(settings.language, 'nextClass')} ·{' '}
-                        {classDate(nextClass.startTime, settings.language)}
-                      </p>
+                    <p className="eyebrow next-class-eyebrow">
+                      {translate(settings.language, 'nextClass')} ·{' '}
+                      {classDate(nextClass.startTime, settings.language)}
+                    </p>
+                    <div className="next-class-header">
                       <h1>{nextClass.title}</h1>
-                      <p>
-                        {nextClass.location || translate(settings.language, 'locationNotProvided')}
-                      </p>
+                      <time>{classTime(nextClass.startTime, settings.language)}</time>
                     </div>
-                    <time>{classTime(nextClass.startTime, settings.language)}</time>
+                    <p className="next-class-location">
+                      {nextClass.location || translate(settings.language, 'locationNotProvided')}
+                    </p>
                   </section>
 
                   {!settings.home && settings.homeTransit?.originStopId && (

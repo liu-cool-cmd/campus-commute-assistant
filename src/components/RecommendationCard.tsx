@@ -46,24 +46,26 @@ export function RecommendationCard({
   if (compact) {
     return (
       <article className="alternative-card">
-        <div>
+        <div className="alternative-card-header">
           <span className="eyebrow">
             {routeName}
             {badge && <span className="route-alert-badge">{badge}</span>}
             <ArrivalTag status={arrivalStatus} language={language} />
           </span>
+        </div>
+        <div className="alternative-card-times">
           <strong>
             {translate(language, 'leave', { time: time(recommendation.leaveAt, language) })}
           </strong>
-          {arrivalStatus === 'late' && (
-            <span className="alternative-late">
-              {arrivalCopy(recommendation.minutesEarly, language)}
-            </span>
-          )}
+          <span>
+            {translate(language, 'arrive', { time: time(recommendation.arrivalTime, language) })}
+          </span>
         </div>
-        <span>
-          {translate(language, 'arrive', { time: time(recommendation.arrivalTime, language) })}
-        </span>
+        {arrivalStatus === 'late' && (
+          <span className="alternative-late">
+            {arrivalCopy(recommendation.minutesEarly, language)}
+          </span>
+        )}
       </article>
     );
   }

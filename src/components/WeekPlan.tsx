@@ -98,26 +98,31 @@ export function WeekPlan({
                               <span>{translate(language, 'leaveHome')}</span>
                               <strong>{time(recommendation.leaveAt, language)}</strong>
                             </div>
-                            <div className="week-route-line">
-                              <span className="week-route-badge">
-                                {routeName?.(
-                                  recommendation.route.id,
-                                  recommendation.route.shortName || recommendation.route.longName,
-                                ) ??
-                                  (recommendation.route.shortName || recommendation.route.longName)}
-                              </span>
-                              {badge && <span className="route-alert-badge">{badge}</span>}
-                              <span>
-                                {translate(language, 'departAt', {
-                                  time: time(recommendation.departureTime, language),
-                                })}
-                              </span>
-                              <span aria-hidden="true">→</span>
-                              <span>
-                                {translate(language, 'arrive', {
-                                  time: time(recommendation.arrivalTime, language),
-                                })}
-                              </span>
+                            <div className="week-commute-details">
+                              <div className="week-route-header">
+                                <span className="week-route-badge">
+                                  {routeName?.(
+                                    recommendation.route.id,
+                                    recommendation.route.shortName || recommendation.route.longName,
+                                  ) ??
+                                    (recommendation.route.shortName ||
+                                      recommendation.route.longName)}
+                                </span>
+                                {badge && <span className="route-alert-badge">{badge}</span>}
+                              </div>
+                              <div className="week-trip-times">
+                                <span>
+                                  {translate(language, 'departAt', {
+                                    time: time(recommendation.departureTime, language),
+                                  })}
+                                </span>
+                                <span aria-hidden="true">→</span>
+                                <span>
+                                  {translate(language, 'arrive', {
+                                    time: time(recommendation.arrivalTime, language),
+                                  })}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         ) : (

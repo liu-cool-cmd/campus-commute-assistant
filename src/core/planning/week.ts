@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { buildingBindingKey, classBindingKey } from '../calendar/bindings';
 import { getDownstreamStops } from '../gtfs/selection';
+import { dateInTimezone } from '../gtfs/time';
 import { findBuilding } from '../locations/geo';
 import { getCommuteRecommendations } from '../routing/engine';
 
@@ -136,11 +137,25 @@ export function buildWeekPlans({
       ].join(':');
       if (!distinct.has(key)) distinct.set(key, recommendation);
     }
-    const recommendation = [...distinct.values()].sort(
+    const ranked = [...distinct.values()].sort(
       (left, right) => right.leaveAt.getTime() - left.leaveAt.getTime(),
-    )[0];
-    return recommendation
-      ? { classEvent, recommendation, status: 'ready' }
-      : { classEvent, status: 'no-matching-departure' };
+    );
+    const recommendation = ranked[0];
+    if (!recommendation) return { classEvent, status: 'no-matching-departure' };
+    // The engine also evaluates the service day before the deadline, so `ranked` can contain a
+    // departure from yesterday. That is not a usable backup for this class, so alternatives are
+    // restricted to the recommendation's own service day. `distinct` already deduplicates on the
+    // full route/stops/departure/arrival key, so the recommendation itself never repeats.
+    const recommendationDay = dateInTimezone(recommendation.departureTime, serviceTimezone);
+    const sameDay = ranked.filter(
+      (entry) => dateInTimezone(entry.departureTime, serviceTimezone) === recommendationDay,
+    );
+    return {
+      classEvent,
+      recommendation,
+      // Capped at two: the week view is a summary, and the home screen shows the full list.
+      alternatives: sameDay.slice(1, 3),
+      status: 'ready',
+    };
   });
 }

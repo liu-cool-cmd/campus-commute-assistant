@@ -1,3 +1,4 @@
+import { Bus, ChevronDown, Clock, Footprints, Info, MapPin } from 'lucide-react';
 import type { ArrivalStatus } from '../core/routing/arrivalStatus';
 import type { AppLanguage, CommuteRecommendation } from '../core/types';
 import { localeFor, translate } from '../i18n';
@@ -21,6 +22,125 @@ function ArrivalTag({ status, language }: { status: ArrivalStatus; language: App
         : '';
   if (!label) return null;
   return <span className={`arrival-tag arrival-tag-${status}`}>{label}</span>;
+}
+
+interface RecommendationDetailsProps {
+  recommendation: CommuteRecommendation;
+  language: AppLanguage;
+  routeName?: string;
+}
+
+interface JourneyTimelineStep {
+  key: string;
+  iconType: 'walk' | 'bus' | 'pin' | 'clock';
+  label: string;
+  value: string;
+}
+
+/**
+ * The expandable journey breakdown shared by the home recommendation card and the
+ * week plan, so both surfaces describe a trip identically.
+ */
+export function RecommendationDetails({
+  recommendation,
+  language,
+  routeName: routeNameOverride,
+}: RecommendationDetailsProps) {
+  const resolvedRouteName =
+    routeNameOverride || recommendation.route.shortName || recommendation.route.longName;
+
+  const destinationStopTime = new Date(
+    recommendation.arrivalTime.getTime() - recommendation.destinationWalkingMinutes * 60_000,
+  );
+
+  const steps: JourneyTimelineStep[] = [];
+
+  if (recommendation.originWalkingMinutes > 0) {
+    steps.push({
+      key: 'origin-walk',
+      iconType: 'walk',
+      label: translate(language, 'walkTo', { stop: recommendation.originStop.name }),
+      value: `${recommendation.originWalkingMinutes} ${translate(language, 'minutesShort')}`,
+    });
+  }
+
+  steps.push({
+    key: 'transit-bus',
+    iconType: 'bus',
+    label: translate(language, 'bus', { route: resolvedRouteName }),
+    value: translate(language, 'departAt', {
+      time: time(recommendation.departureTime, language),
+    }),
+  });
+
+  steps.push({
+    key: 'dest-stop',
+    iconType: 'pin',
+    label: translate(language, 'arriveAt', { stop: recommendation.destinationStop.name }),
+    value: time(destinationStopTime, language),
+  });
+
+  if (recommendation.destinationWalkingMinutes > 0) {
+    steps.push({
+      key: 'dest-walk',
+      iconType: 'walk',
+      label: translate(language, 'walkToClass'),
+      value: `${recommendation.destinationWalkingMinutes} ${translate(language, 'minutesShort')}`,
+    });
+  }
+
+  if (recommendation.waitingMinutes > 0) {
+    steps.push({
+      key: 'waiting-headway',
+      iconType: 'clock',
+      label: translate(language, 'headwayAllowance'),
+      value: translate(language, 'upToMinutes', {
+        minutes: recommendation.waitingMinutes,
+      }),
+    });
+  }
+
+  return (
+    <>
+      <div className="journey-grid">
+        {steps.map((step, index) => {
+          const isLast = index === steps.length - 1;
+          return (
+            <div className={`journey-step ${isLast ? 'journey-step-last' : ''}`} key={step.key}>
+              <span className="journey-step-label">
+                <span className="timeline-icon-wrap" aria-hidden="true">
+                  {step.iconType === 'walk' && <Footprints size={15} className="timeline-icon" />}
+                  {step.iconType === 'bus' && (
+                    <Bus size={15} className="timeline-icon timeline-bus-icon" />
+                  )}
+                  {step.iconType === 'pin' && (
+                    <MapPin size={15} className="timeline-icon timeline-stop-icon" />
+                  )}
+                  {step.iconType === 'clock' && (
+                    <Clock size={15} className="timeline-icon timeline-clock-icon" />
+                  )}
+                  {!isLast && <span className="timeline-connector" />}
+                </span>
+                <span className="journey-step-text">{step.label}</span>
+              </span>
+              <strong className="journey-step-value">{step.value}</strong>
+            </div>
+          );
+        })}
+      </div>
+      {recommendation.trip.scheduleSource && (
+        <p className="schedule-source-note">
+          <Info size={13} className="schedule-source-icon" aria-hidden="true" />
+          <span>
+            {translate(language, 'scheduleSource')}{' '}
+            <a href={recommendation.trip.scheduleSource.url} target="_blank" rel="noreferrer">
+              {recommendation.trip.scheduleSource.label}
+            </a>
+          </span>
+        </p>
+      )}
+    </>
+  );
 }
 
 interface RecommendationCardProps {
@@ -48,7 +168,7 @@ export function RecommendationCard({
       <article className="alternative-card">
         <div className="alternative-card-header">
           <span className="eyebrow">
-            {routeName}
+            <span className="route-pill">{routeName}</span>
             {badge && <span className="route-alert-badge">{badge}</span>}
             <ArrivalTag status={arrivalStatus} language={language} />
           </span>
@@ -91,63 +211,32 @@ export function RecommendationCard({
       </div>
       {/* Only the bus arrival at the boarding stop stays visible; everything else lives in details. */}
       <p className="recommendation-fact">
-        <span>{translate(language, 'bus', { route: routeName })}</span>
+        <span className="recommendation-fact-route">
+          <span className="live-pulse-dot" aria-hidden="true" />
+          <Bus size={17} className="recommendation-bus-icon" aria-hidden="true" />
+          <span>{translate(language, 'bus', { route: routeName })}</span>
+        </span>
         <strong>
           {recommendation.departureTimeIsExact === false ? translate(language, 'about') : ''}
           {time(recommendation.departureTime, language)}
         </strong>
       </p>
-      <p className="early-copy">{arrivalCopy(recommendation.minutesEarly, language)}</p>
+      <p
+        className={`early-copy ${recommendation.minutesEarly < 0 ? 'early-copy-late' : 'early-copy-ontime'}`}
+      >
+        <Clock size={15} className="early-copy-icon" aria-hidden="true" />
+        <span>{arrivalCopy(recommendation.minutesEarly, language)}</span>
+      </p>
       <details className="recommendation-details">
-        <summary>{translate(language, 'details')}</summary>
-        <div className="journey-grid">
-          {recommendation.originWalkingMinutes > 0 && (
-            <>
-              <span>{translate(language, 'walkTo', { stop: recommendation.originStop.name })}</span>
-              <strong>
-                {recommendation.originWalkingMinutes} {translate(language, 'minutesShort')}
-              </strong>
-            </>
-          )}
-          <span>
-            {translate(language, 'arriveAt', { stop: recommendation.destinationStop.name })}
-          </span>
-          <strong>
-            {time(
-              new Date(
-                recommendation.arrivalTime.getTime() -
-                  recommendation.destinationWalkingMinutes * 60_000,
-              ),
-              language,
-            )}
-          </strong>
-          {recommendation.destinationWalkingMinutes > 0 && (
-            <>
-              <span>{translate(language, 'walkToClass')}</span>
-              <strong>
-                {recommendation.destinationWalkingMinutes} {translate(language, 'minutesShort')}
-              </strong>
-            </>
-          )}
-          {recommendation.waitingMinutes > 0 && (
-            <>
-              <span>{translate(language, 'headwayAllowance')}</span>
-              <strong>
-                {translate(language, 'upToMinutes', {
-                  minutes: recommendation.waitingMinutes,
-                })}
-              </strong>
-            </>
-          )}
-        </div>
-        {recommendation.trip.scheduleSource && (
-          <p className="schedule-source-note">
-            {translate(language, 'scheduleSource')}{' '}
-            <a href={recommendation.trip.scheduleSource.url} target="_blank" rel="noreferrer">
-              {recommendation.trip.scheduleSource.label}
-            </a>
-          </p>
-        )}
+        <summary>
+          <span>{translate(language, 'details')}</span>
+          <ChevronDown size={16} className="details-chevron" aria-hidden="true" />
+        </summary>
+        <RecommendationDetails
+          recommendation={recommendation}
+          language={language}
+          routeName={routeName}
+        />
       </details>
     </article>
   );

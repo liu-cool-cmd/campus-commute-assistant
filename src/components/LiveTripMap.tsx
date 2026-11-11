@@ -1,5 +1,6 @@
 import { divIcon, latLngBounds } from 'leaflet';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Crosshair, ExternalLink } from 'lucide-react';
 import {
   CircleMarker,
   MapContainer,
@@ -190,8 +191,14 @@ export function LiveTripMap({
   return (
     <section className="live-map-page live-trip-page">
       <header className="live-map-header">
-        <button className="live-map-close" type="button" onClick={onClose}>
-          <span aria-hidden="true">←</span> {translate(language, 'close')}
+        <button
+          className="live-map-close"
+          type="button"
+          onClick={onClose}
+          aria-label={translate(language, 'close')}
+        >
+          <ArrowLeft size={16} strokeWidth={2.4} aria-hidden="true" />
+          <span>{translate(language, 'close')}</span>
         </button>
         <strong>
           {routeName} · {translate(language, 'live')}
@@ -203,10 +210,12 @@ export function LiveTripMap({
             onClick={() => setRecenterTrigger((c) => c + 1)}
             title={translate(language, 'fitTrip')}
           >
-            🎯 {translate(language, 'fitTrip')}
+            <Crosshair size={13} strokeWidth={2.4} aria-hidden="true" />
+            <span>{translate(language, 'fitTrip')}</span>
           </button>
           <button className="live-map-external-link" type="button" onClick={onOpenOfficial}>
-            {translate(language, 'openFullTransloc')}
+            <span>{translate(language, 'openFullTransloc')}</span>
+            <ExternalLink size={12} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
       </header>

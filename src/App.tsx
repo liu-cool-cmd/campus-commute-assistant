@@ -1,5 +1,17 @@
 import { Capacitor } from '@capacitor/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  BusFront,
+  CalendarDays,
+  ChevronRight,
+  Compass,
+  Home,
+  MapPin,
+  PlusCircle,
+  Route,
+  Settings,
+} from 'lucide-react';
 import { defaultCampus } from './campuses';
 import {
   buildDukeAlertCatalog,
@@ -13,7 +25,9 @@ import { ImportClasses } from './components/ImportClasses';
 import { LiveRouteOverlay } from './components/LiveRouteOverlay';
 import { LiveTripMap } from './components/LiveTripMap';
 import { LiveTransitMap } from './components/LiveTransitMap';
+import { OneOffTripPanel } from './components/OneOffTripPanel';
 import { RecommendationCard } from './components/RecommendationCard';
+import { RouteExplorer } from './components/RouteExplorer';
 import { SettingsPanel, type SettingsFocusSection } from './components/SettingsPanel';
 import { settingsScrollTop } from './components/settingsScroll';
 import { WeekPlan } from './components/WeekPlan';
@@ -39,8 +53,10 @@ import { loadGtfs, type GtfsSnapshot } from './core/gtfs/client';
 import { getDownstreamStops } from './core/gtfs/selection';
 import { findBuilding } from './core/locations/geo';
 import {
+  cancelOneOffNotification,
   scheduleAlertNotifications,
   scheduleCommuteNotification,
+  scheduleOneOffNotification,
 } from './core/notifications/local';
 import { buildWeekPlans } from './core/planning/week';
 import { isRealtimeSnapshotIdentical, RealtimeSnapshotCache } from './core/realtime/realtimeCache';
@@ -48,10 +64,18 @@ import { calculateLiveTripProgress, type LiveTripProgress } from './core/realtim
 import { applyLiveTripFallback } from './core/realtime/routeProgressFallback';
 import { getCommuteRecommendations, getFollowingDepartures } from './core/routing/engine';
 import { arrivalStatus, buildAlternativeList } from './core/routing/arrivalStatus';
-import { loadClasses, loadSettings, saveClasses, saveSettings } from './core/storage/preferences';
+import {
+  loadClasses,
+  loadOneOffTrips,
+  loadSettings,
+  saveClasses,
+  saveOneOffTrips,
+  saveSettings,
+} from './core/storage/preferences';
 import type {
   ClassEvent,
   CommuteRecommendation,
+  OneOffTrip,
   RealtimeSnapshot,
   TransitSelection,
   UserSettings,
@@ -109,7 +133,14 @@ function areTransitSelectionsEqual(a: TransitSelection[], b: TransitSelection[])
 
 export default function App() {
   const [tab, setTab] = useState<
-    'home' | 'week' | 'alerts' | 'settings' | 'live-trip-map' | 'official-map'
+    | 'home'
+    | 'week'
+    | 'alerts'
+    | 'routes'
+    | 'one-off'
+    | 'settings'
+    | 'live-trip-map'
+    | 'official-map'
   >('home');
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocusSection>();
   const [settings, setSettings] = useState<UserSettings>(defaults);
@@ -122,6 +153,7 @@ export default function App() {
   const [realtimeSnapshot, setRealtimeSnapshot] = useState<RealtimeSnapshot>();
   const [translocAlerts, setTranslocAlerts] = useState<TransitAlert[]>([]);
   const [parkingAlerts, setParkingAlerts] = useState<TransitAlert[]>([]);
+  const [oneOffTrips, setOneOffTrips] = useState<OneOffTrip[]>([]);
   const [now, setNow] = useState(() => new Date());
   const contentRef = useRef<HTMLElement>(null);
   const lastKnownGoodRef = useRef<LiveTripProgress | undefined>(undefined);
@@ -239,21 +271,25 @@ export default function App() {
   };
 
   useEffect(() => {
-    void Promise.all([loadSettings(defaults), loadClasses(), loadCachedAlerts()]).then(
-      ([storedSettings, storedClasses, cachedAlerts]) => {
-        setSettings(
-          campus.migrateSettings?.(storedSettings) ?? {
-            ...storedSettings,
-            homeTransit:
-              campus.migrateHomeTransit?.(storedSettings.homeTransit) ?? storedSettings.homeTransit,
-          },
-        );
-        setClasses(storedClasses);
-        setTranslocAlerts(cachedAlerts.filter((alert) => alert.source === 'transloc'));
-        setParkingAlerts(cachedAlerts.filter((alert) => alert.source === 'parking-rss'));
-        setHydrated(true);
-      },
-    );
+    void Promise.all([
+      loadSettings(defaults),
+      loadClasses(),
+      loadCachedAlerts(),
+      loadOneOffTrips(),
+    ]).then(([storedSettings, storedClasses, cachedAlerts, storedTrips]) => {
+      setSettings(
+        campus.migrateSettings?.(storedSettings) ?? {
+          ...storedSettings,
+          homeTransit:
+            campus.migrateHomeTransit?.(storedSettings.homeTransit) ?? storedSettings.homeTransit,
+        },
+      );
+      setClasses(storedClasses);
+      setTranslocAlerts(cachedAlerts.filter((alert) => alert.source === 'transloc'));
+      setParkingAlerts(cachedAlerts.filter((alert) => alert.source === 'parking-rss'));
+      setOneOffTrips(storedTrips);
+      setHydrated(true);
+    });
     void refreshGtfs();
     const refreshTimer = window.setInterval(() => void refreshGtfs(), 6 * 60 * 60 * 1_000);
     return () => window.clearInterval(refreshTimer);
@@ -652,10 +688,10 @@ export default function App() {
   }, [activeTripKey]);
 
   useEffect(() => {
+    // The line explorer browses every published line, so it polls without a saved recommendation.
     const isRealtimeActive =
-      (tab === 'home' || tab === 'live-trip-map') &&
-      Boolean(recommended) &&
-      campus.realtime.available;
+      campus.realtime.available &&
+      (tab === 'routes' || ((tab === 'home' || tab === 'live-trip-map') && Boolean(recommended)));
     if (!isRealtimeActive) return;
 
     let disposed = false;
@@ -770,6 +806,55 @@ export default function App() {
     void saveClasses(events);
   };
 
+  const updateOneOffTrips = useCallback((trips: OneOffTrip[]) => {
+    setOneOffTrips(trips);
+    void saveOneOffTrips(trips);
+  }, []);
+
+  /**
+   * Schedules a one-off trip's leave-time reminder. The notification id is namespaced inside
+   * the notification layer, so this can never replace a class or alert reminder.
+   */
+  const scheduleOneOffTrip = useCallback(
+    async (trip: OneOffTrip) => {
+      if (!snapshot) return false;
+      const originStop = snapshot.feed.stops.find((stop) => stop.id === trip.originStopId);
+      const destinationStop = snapshot.feed.stops.find(
+        (stop) => stop.id === trip.destinationStopId,
+      );
+      if (!originStop || !destinationStop) return false;
+      const recommendation = getCommuteRecommendations({
+        feed: snapshot.feed,
+        request: {
+          origin: settings.home ?? originStop,
+          destination: destinationStop,
+          arrivalDeadline: trip.arrivalDeadline,
+          bufferMinutes: trip.bufferMinutes,
+        },
+        transitSelection: {
+          routeId: trip.routeId,
+          originStopId: trip.originStopId,
+          destinationStopId: trip.destinationStopId,
+        },
+        serviceTimezone: campus.config.timezone,
+        walkingSpeedMetersPerSecond: settings.walkingSpeedMetersPerSecond,
+        walkingCorrectionFactor: settings.walkingCorrectionFactor,
+      })[0];
+      if (!recommendation) return false;
+      return scheduleOneOffNotification(
+        trip,
+        recommendation,
+        settings.language,
+        routeName(recommendation.route.id, recommendation.route.shortName),
+      );
+    },
+    [settings, snapshot],
+  );
+
+  const cancelOneOffTrip = useCallback(async (tripId: string) => {
+    await cancelOneOffNotification(tripId);
+  }, []);
+
   const openSettingsAt = useCallback(
     (focus: SettingsFocusSection) => {
       setSettingsFocus(focus);
@@ -791,9 +876,12 @@ export default function App() {
         type="button"
         onClick={() => openSettingsAt('class-stops')}
       >
-        <span>{translate(settings.language, 'getOffAt')}</span>
+        <span className="class-stop-label">
+          <MapPin size={15} className="class-stop-icon" aria-hidden="true" />
+          <span>{translate(settings.language, 'getOffAt')}</span>
+        </span>
         <strong>{classStopLabel ?? translate(settings.language, 'selectArrivalStop')}</strong>
-        <span aria-hidden="true">→</span>
+        <ChevronRight size={18} className="class-stop-arrow" aria-hidden="true" />
       </button>
     ) : null;
 
@@ -803,7 +891,9 @@ export default function App() {
     <>
       <div className="app-shell" aria-hidden={isMapOpen ? 'true' : undefined}>
         <header className="topbar">
-          <div className="brand-mark">CCA</div>
+          <div className="brand-mark" aria-hidden="true">
+            <BusFront size={20} strokeWidth={2.4} />
+          </div>
           <div>
             <strong>Campus Commute</strong>
             <span>{campus.config.name}</span>
@@ -813,7 +903,7 @@ export default function App() {
             aria-label={translate(settings.language, 'openSettings')}
             onClick={() => changeTab('settings')}
           >
-            ⚙
+            <Settings size={18} strokeWidth={2} />
           </button>
         </header>
 
@@ -822,7 +912,9 @@ export default function App() {
             <>
               {!nextClass ? (
                 <section className="empty-state">
-                  <div className="empty-icon">↗</div>
+                  <div className="empty-icon" aria-hidden="true">
+                    <Compass size={32} strokeWidth={1.8} />
+                  </div>
                   <p className="eyebrow">{translate(settings.language, 'startHere')}</p>
                   <h1>{translate(settings.language, 'whenShouldYouLeave')}</h1>
                   <p>{translate(settings.language, 'importPrompt')}</p>
@@ -961,10 +1053,34 @@ export default function App() {
               plans={weekPlans}
               routeName={routeName}
               alertBadge={weekPlanAlertBadge}
+              bufferMinutes={settings.defaultBufferMinutes}
               onOpenSettings={() => changeTab('settings')}
             />
           ) : tab === 'alerts' ? (
             <AlertsPanel language={settings.language} alerts={homeAlerts} routeName={routeName} />
+          ) : tab === 'routes' ? (
+            <RouteExplorer
+              language={settings.language}
+              routes={realtimeSnapshot?.routes ?? []}
+              vehicles={realtimeSnapshot?.vehicles ?? []}
+              home={settings.home}
+            />
+          ) : tab === 'one-off' ? (
+            <OneOffTripPanel
+              language={settings.language}
+              feed={snapshot?.feed}
+              routeFamilies={campus.routeFamilies}
+              homeTransit={settings.homeTransit}
+              home={settings.home}
+              walkingSpeedMetersPerSecond={settings.walkingSpeedMetersPerSecond}
+              walkingCorrectionFactor={settings.walkingCorrectionFactor}
+              serviceTimezone={campus.config.timezone}
+              trips={oneOffTrips}
+              onTrips={updateOneOffTrips}
+              onSchedule={scheduleOneOffTrip}
+              onCancel={cancelOneOffTrip}
+              routeName={routeName}
+            />
           ) : (
             <SettingsPanel
               settings={settings}
@@ -984,25 +1100,57 @@ export default function App() {
         </main>
 
         <nav className="bottom-nav" aria-label={translate(settings.language, 'primaryNavigation')}>
-          <button className={tab === 'home' ? 'active' : ''} onClick={() => changeTab('home')}>
-            <span>⌂</span>
-            {translate(settings.language, 'nextTrip')}
-          </button>
-          <button className={tab === 'week' ? 'active' : ''} onClick={() => changeTab('week')}>
-            <span>▦</span>
-            {translate(settings.language, 'weekPlanNav')}
-          </button>
-          <button className={tab === 'alerts' ? 'active' : ''} onClick={() => changeTab('alerts')}>
-            {/* U+26A0 + U+FE0E keeps the warning triangle in its monochrome text form. */}
-            <span>{'\u26A0\uFE0E'}</span>
-            {translate(settings.language, 'alertsNav')}
+          <button
+            type="button"
+            className={tab === 'home' ? 'active' : ''}
+            onClick={() => changeTab('home')}
+          >
+            <Home size={19} strokeWidth={tab === 'home' ? 2.5 : 1.9} aria-hidden="true" />
+            <span>{translate(settings.language, 'nextTrip')}</span>
           </button>
           <button
+            type="button"
+            className={tab === 'week' ? 'active' : ''}
+            onClick={() => changeTab('week')}
+          >
+            <CalendarDays size={19} strokeWidth={tab === 'week' ? 2.5 : 1.9} aria-hidden="true" />
+            <span>{translate(settings.language, 'weekPlanNav')}</span>
+          </button>
+          <button
+            type="button"
+            className={tab === 'alerts' ? 'active' : ''}
+            onClick={() => changeTab('alerts')}
+          >
+            <AlertTriangle
+              size={19}
+              strokeWidth={tab === 'alerts' ? 2.5 : 1.9}
+              aria-hidden="true"
+            />
+            <span>{translate(settings.language, 'alertsNav')}</span>
+          </button>
+          <button
+            type="button"
+            className={tab === 'routes' ? 'active' : ''}
+            onClick={() => changeTab('routes')}
+          >
+            <Route size={19} strokeWidth={tab === 'routes' ? 2.5 : 1.9} aria-hidden="true" />
+            <span>{translate(settings.language, 'routesNav')}</span>
+          </button>
+          <button
+            type="button"
+            className={tab === 'one-off' ? 'active' : ''}
+            onClick={() => changeTab('one-off')}
+          >
+            <PlusCircle size={19} strokeWidth={tab === 'one-off' ? 2.5 : 1.9} aria-hidden="true" />
+            <span>{translate(settings.language, 'oneOffNav')}</span>
+          </button>
+          <button
+            type="button"
             className={tab === 'settings' ? 'active' : ''}
             onClick={() => changeTab('settings')}
           >
-            <span>⚙</span>
-            {translate(settings.language, 'settings')}
+            <Settings size={19} strokeWidth={tab === 'settings' ? 2.5 : 1.9} aria-hidden="true" />
+            <span>{translate(settings.language, 'settings')}</span>
           </button>
         </nav>
       </div>

@@ -43,6 +43,8 @@ school can be added without forking the core engine.
   boarding stop, never a predicted ETA.
 - Replace and reschedule Android local notifications when a recommendation changes.
 - Review every remaining class and its matching commute in a grouped, next-7-days plan.
+- Expand any week-plan card for the full journey breakdown and the other departures found for
+  that class, each labelled with whether it still makes the buffer.
 - Add five Android home-screen widgets: next commute, today, today + tomorrow, next 7 days, and a
   compact Mini schedule with one upcoming day per line. They reuse the app's saved static-schedule
   results, follow the launcher resize size (dragging one taller shows more plans instead of leaving
@@ -55,11 +57,67 @@ school can be added without forking the core engine.
 - Order the home screen so the recommended leave time and the live mini map come first, list earlier
   backups and the following departures (labelled when they may be late), and keep arrival-stop
   editing in Settings.
+- Plan a one-off trip without a calendar class: choose any line, stops, an arrival time, and a
+  buffer that applies to that trip only, then get a leave-time reminder.
+- Browse every line TransLoc publishes, not only the saved commute line, and see the live vehicle
+  positions and stop sequence of the selected line.
 
 v0.1 is a timetable matcher, not a general journey planner. It does not search nearby stops,
 substitute routes, or calculate transfers. A Home pin adds the walk to the saved boarding stop. A
 recognized building adds the final walk from the class's saved arrival stop; an unknown building
 does not block matching and is treated as the arrival stop itself.
+
+## v0.5
+
+Three additions, none of which change how a saved commute is computed.
+
+### Expandable week plan
+
+Each week-plan card can be opened to show the same journey breakdown the home screen uses:
+walking time to the stop, arrival time at the stop, the walk to class, any headway allowance,
+and the cited timetable when the departure came from an official supplement. The breakdown is a
+shared component, so the two screens cannot drift apart.
+
+Opening a card also lists the other departures found for that class, capped at two and limited
+to the recommendation's own service day. They are informational: a later one can arrive after
+the bell, so each is labelled with the same normal / may be late / late status the home screen
+uses. The engine also evaluates the service day before the deadline, and that departure is not
+offered as a backup for a class on the day itself.
+
+### One-off trips
+
+A Quick trip tab plans a single arrival without a calendar class: pick any published line, a
+boarding stop, an arrival stop, the time you need to be there, and a buffer, then get a
+leave-time reminder.
+
+- **The saved commute is the default, and every field is editable.** The line, boarding stop and
+  route family start from the saved home commute but can be changed for this trip alone.
+- **The buffer belongs to the trip.** A business appointment and a pickup may need different
+  margins, so the value is stored on the trip and never touches the default commute buffer.
+- **Route families stay separate.** The LaSalle Loop options appear as the same auto-match
+  choices used elsewhere, so `duke-ll` and `duke-llccw` each evaluate their day and night
+  variants independently.
+- **Arrival stops are constrained to downstream stops** of the chosen boarding stop, so the form
+  cannot produce a backwards trip.
+- **No invented alternatives.** A line with no usable departure reports that plainly and suggests
+  another line, stop, or time.
+
+Trips are stored locally, expire once their deadline passes, and each can be deleted, which also
+cancels its reminder. A one-off reminder is namespaced before its notification id is derived, so
+it can never land on a class or alert reminder and replace it. One-off trips are not offered as
+saved presets.
+
+### Live lines explorer
+
+A Lines tab lists every line TransLoc publishes, not only the one saved for the commute. Selecting
+a line shows its vehicles on a map, the line's stop sequence, and how many vehicles are reporting.
+
+This is presentation only. The provider already returns every published line in one response, so
+the explorer reuses the shared snapshot and the same 5-second foreground poll the home screen uses
+while this tab is open. It shows **positions only**: it never claims which bus is next, never
+computes a distance to your stop, and never produces an ETA. Vehicles whose GPS is older than the
+shared 60-second staleness threshold are reported as a count instead of being drawn, so a stale
+position is never presented as live.
 
 ## v0.2 Live Trip (phase 1)
 
@@ -107,6 +165,9 @@ departure time and the live mini map.
 The document root never scrolls: the shell's single scroll container is the content column, so
 dragging on the bottom navigation cannot move the layout, and the deep link to Settings scrolls only
 that column.
+
+The bottom navigation carries six destinations: Next trip, Week, Alerts, Lines, Quick trip, and
+Settings. Lines and Quick trip are the v0.5 additions.
 
 ## v0.4 Transit alerts
 
@@ -347,6 +408,11 @@ refresh duplicate suppression, alert content updates, the home departure list an
 be late / late classification, resolution of a loop terminus that is also a trip's first stop,
 week-plan status selection, Live Trip status labels, and the Settings deep-link scroll offset.
 
+The v0.5 additions cover the line explorer's vehicle filtering and its shared 60-second
+staleness threshold, its route ordering, one-off notification id namespacing (including the
+guarantee that a one-off trip cannot collide with a class or alert reminder), the per-trip buffer,
+and the week plan's other-departure list including its same-service-day restriction.
+
 GitHub Actions runs formatting, lint, typecheck, tests, the production web build, Capacitor sync, and
 an Android debug APK build.
 
@@ -355,6 +421,8 @@ an Android debug APK build.
 - v0.2 Live Trip vehicle positions, route progress, and stale/ambiguous data warnings. _Shipped._
 - v0.4 Transit alerts from the TransLoc message feed and the Parking news RSS, with notification
   scope settings, per-route badges, and labelled following departures. _Shipped._
+- v0.5 Expandable week-plan cards, one-off trips with their own buffer and leave-time reminder,
+  and a live lines explorer for any published route. _Shipped._
 - Next: verified arrivals and explicitly opt-in delay-aware recommendation experiments, optional
   system calendar access, and richer Duke building coverage.
 - Later: saved route/stop presets, bike timing, more campus adapters, and accessible commute
@@ -365,7 +433,9 @@ PR1, H1/H2 and LNC schedules, remaining source conflicts, and GPS-only map fallb
 
 ## Privacy
 
-Schedules, language, stop bindings, alert scope, and saved Home coordinates remain on the device.
+Schedules, language, stop bindings, alert scope, saved Home coordinates, and saved one-off trips
+remain on the device. One-off trips are local entries only: they are never uploaded, and they are
+deleted from the device once their deadline passes.
 The app sends GTFS and foreground Live Trip requests to Duke's TransLoc host, map-tile requests to
 OpenStreetMap, and only user-submitted address searches to OpenStreetMap Nominatim. Foreground alert
 refresh also requests Duke's TransLoc message feed and the Duke Parking & Transportation news RSS

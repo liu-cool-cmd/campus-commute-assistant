@@ -83,6 +83,55 @@ the arrival deadline (`getFollowingDepartures`), so they can arrive after the cl
 the recommendation itself stays the latest departure that satisfies the buffer. Arrival stops are
 configured in Settings; the home screen only displays the saved stop and links to that section.
 
+## Week plan expansion (v0.5)
+
+`RecommendationDetails` is the shared expandable journey breakdown used by both the home
+recommendation card and the week plan, so the two surfaces cannot describe a trip differently.
+
+`buildWeekPlans` returns up to two `alternatives` alongside the recommendation. They are the
+other departures the engine found for the same class, restricted to the recommendation's own
+campus-local service day: the engine deliberately evaluates the day before the deadline as well,
+and that departure is not a usable backup for a class happening on the day itself. Alternatives
+are informational, so the week card labels each one through `arrivalStatus` with the same
+normal / may be late / late semantics as the home screen. The recommendation itself is never
+repeated in the list.
+
+## One-off trips (v0.5)
+
+A one-off trip is a single arrival deadline with a complete `TransitSelection`, so it runs
+through exactly the same `getCommuteRecommendations` entry point as a class. There is no second
+routing path and no route search.
+
+- The form prefills from the saved home commute, including a route family, and every field is
+  editable for that trip alone.
+- `bufferMinutes` is stored on the trip. It never changes `UserSettings.defaultBufferMinutes`,
+  because a single appointment and the daily commute legitimately need different margins.
+- Arrival-stop options come from `getDownstreamStops`, so the form cannot produce a backwards
+  trip. A family selection maps the stop through the audited family table per variant.
+- Trips live in their own `one-off-trips-v1` preferences key and are dropped once their deadline
+  passes, so an expired trip never lingers as an actionable plan.
+- `oneOffNotificationKey` namespaces the trip id _before_ it is hashed into a notification id.
+  Class and alert reminders hash their own raw keys, so this prefix is what guarantees a one-off
+  trip can never overwrite another reminder. Scheduling and cancelling share the same helper.
+- The resolver is called without a realtime snapshot: a future arrival time says nothing about
+  which vehicle is running now, and letting it influence the variant choice would be misleading.
+
+## Live lines explorer (v0.5)
+
+`core/realtime/routeExplorer` holds presentation-level filters over an existing snapshot:
+`visibleVehiclesFor`, `summarizeRouteVehicles`, and `sortRoutesForExplorer`.
+
+The provider already returns every published line in one response, so the explorer adds no
+request and no data model. It shares the app's single `RealtimeSnapshotCache` and the same
+foreground 5-second poll, which is gated on the explorer tab being open.
+
+The explorer is deliberately weaker than Live Trip: it shows positions only. It never selects a
+next vehicle, never computes a distance to a boarding stop, and never produces an ETA, because it
+has no boarding or arrival selection. Vehicles past the shared `DEFAULT_STALE_AFTER_SECONDS`
+threshold are excluded from the map and reported as a count, so a stale position is never drawn
+as live. Route geometry and ordered stops come straight from the snapshot and are shown for
+reference without any timing claim attached.
+
 ## Week plan and Android widgets
 
 The week screen filters upcoming classes to the next seven calendar days, then evaluates each event

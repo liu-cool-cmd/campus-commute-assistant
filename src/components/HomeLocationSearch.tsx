@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { Search } from 'lucide-react';
 import { searchLocations, type LocationSearchResult } from '../core/locations/geocoding';
 import type { AppLanguage, Location } from '../core/types';
 import { translate } from '../i18n';
@@ -63,7 +64,8 @@ export function HomeLocationSearch({ language, onSelect }: HomeLocationSearchPro
             onChange={(event) => setQuery(event.target.value)}
           />
           <button className="secondary-button" disabled={searching} type="submit">
-            {translate(language, searching ? 'searching' : 'search')}
+            <Search size={14} aria-hidden="true" />
+            <span>{translate(language, searching ? 'searching' : 'search')}</span>
           </button>
         </div>
       </form>

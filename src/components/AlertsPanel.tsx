@@ -1,3 +1,4 @@
+import { CheckCircle2, ExternalLink, Info, ShieldAlert } from 'lucide-react';
 import { classifyAlertKind } from '../core/alerts/labels';
 import type { TransitAlert } from '../core/alerts/types';
 import type { AppLanguage } from '../core/types';
@@ -15,12 +16,18 @@ interface AlertCardProps {
 
 function AlertCard({ language, alert, compact = false, routeName }: AlertCardProps) {
   const kind = classifyAlertKind(alert.message);
+  const isImportant = alert.severity === 'important';
   return (
-    <article
-      className={`alert-card${alert.severity === 'important' ? ' alert-card-important' : ''}`}
-    >
+    <article className={`alert-card${isImportant ? ' alert-card-important' : ''}`}>
       <div className="alert-card-head">
-        <span className="alert-chip">{alertKindLabel(kind, language)}</span>
+        <span className="alert-chip">
+          {isImportant ? (
+            <ShieldAlert size={12} className="alert-badge-icon" aria-hidden="true" />
+          ) : (
+            <Info size={12} className="alert-badge-icon" aria-hidden="true" />
+          )}
+          <span>{alertKindLabel(kind, language)}</span>
+        </span>
         <span className="alert-source">
           {translate(
             language,
@@ -39,7 +46,8 @@ function AlertCard({ language, alert, compact = false, routeName }: AlertCardPro
       )}
       {!compact && alert.link && (
         <a className="alert-link" href={alert.link} target="_blank" rel="noreferrer">
-          {translate(language, 'alertOpenNotice')}
+          <span>{translate(language, 'alertOpenNotice')}</span>
+          <ExternalLink size={12} aria-hidden="true" />
         </a>
       )}
     </article>
@@ -91,7 +99,9 @@ export function AlertsPanel({ language, alerts, routeName }: AlertsPanelProps) {
       </div>
       {alerts.length === 0 ? (
         <section className="week-plan-empty">
-          <span aria-hidden="true">✓</span>
+          <span className="empty-check-icon" aria-hidden="true">
+            <CheckCircle2 size={26} strokeWidth={2.4} />
+          </span>
           <p>{translate(language, 'alertsEmpty')}</p>
         </section>
       ) : (

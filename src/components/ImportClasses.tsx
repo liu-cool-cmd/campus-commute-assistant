@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { UploadCloud } from 'lucide-react';
 import { parseIcs } from '../core/calendar/ics';
 import type { AppLanguage, ClassEvent } from '../core/types';
 import { translate } from '../i18n';
@@ -48,7 +49,8 @@ export function ImportClasses({ language, mode = 'import', onImport }: ImportCla
         onChange={(event) => void importFile(event.target.files?.[0])}
       />
       <button className="primary-button" onClick={() => input.current?.click()}>
-        {translate(language, mode === 'replace' ? 'replaceCalendar' : 'importCalendar')}
+        <UploadCloud size={16} aria-hidden="true" />
+        <span>{translate(language, mode === 'replace' ? 'replaceCalendar' : 'importCalendar')}</span>
       </button>
       <p>{translate(language, mode === 'replace' ? 'replaceCalendarHint' : 'importHint')}</p>
       {success && <p className="success-text">{success}</p>}

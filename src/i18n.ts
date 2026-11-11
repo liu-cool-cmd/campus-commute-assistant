@@ -233,6 +233,53 @@ const en = {
   alertScopeMyRoutes: 'My routes only',
   alertScopeImportant: 'Important alerts only',
   alertNotificationTitleFallback: 'Transit alert',
+  // v0.5 route explorer (any TransLoc line, live vehicle positions only)
+  routesNav: 'Lines',
+  routesSection: 'Live lines',
+  routesHeading: 'Watch any Duke line live',
+  routesHint:
+    'Every line TransLoc publishes, not only the one saved for your commute. Live vehicle positions only; no arrival prediction.',
+  routesEmpty: 'No live line data is available right now.',
+  routesSelectPrompt: 'Select a line to see its vehicles.',
+  routesVehiclesNow: '{{count}} vehicles now',
+  routesNoVehicles: 'No vehicles reporting on this line.',
+  routesStaleCount:
+    '{{count}} vehicle(s) have GPS older than {{seconds}}s and are hidden on the map.',
+  routesStopSequence: 'Stop sequence',
+  routesRunning: 'Running',
+  routesNotRunning: 'Not running',
+  // v0.5 week plan card expansion
+  collapse: 'Hide details',
+  otherDepartures: 'Other departures',
+  // v0.5 one-off trips
+  oneOffNav: 'Quick trip',
+  oneOffSection: 'One-off trip',
+  oneOffHeading: 'Plan a one-off trip',
+  oneOffHint:
+    'Pick any line and stops, set the time you need to arrive, and get a leave-time reminder. The buffer below applies to this trip only.',
+  oneOffTitle: 'What is this trip for?',
+  oneOffTitlePlaceholder: 'e.g. dentist appointment',
+  oneOffLine: 'Line',
+  oneOffBoardAt: 'Board at',
+  oneOffGetOffAt: 'Get off at',
+  oneOffArriveBy: 'I need to be there by',
+  oneOffBuffer: 'Buffer for this trip only',
+  oneOffBufferHint:
+    'How many minutes early you want to arrive. This does not change your default commute buffer.',
+  oneOffCreate: 'Show recommendation',
+  oneOffRemind: 'Set leave-time reminder',
+  oneOffReset: 'Reset',
+  oneOffNoSelection: 'Choose a line, a boarding stop, an arrival stop, and a time.',
+  oneOffNoDeparture:
+    'No trip on this line reaches that stop in time. Try another line, another stop, or a later time.',
+  oneOffReminderSet: 'Leave-time reminder set.',
+  oneOffReminderFailed: 'Could not set the reminder on this device.',
+  oneOffSaved: 'Upcoming one-off trips',
+  oneOffSavedEmpty: 'No one-off trips saved.',
+  oneOffDelete: 'Delete',
+  oneOffCleared: 'Trip removed.',
+  oneOffNotification: 'One-off trip: {{title}}',
+  oneOffUseDefaults: 'Start from my saved commute',
 } as const;
 
 type TranslationKey = keyof typeof en;
@@ -460,6 +507,49 @@ const zh: Record<TranslationKey, string> = {
   alertScopeMyRoutes: '仅我的线路',
   alertScopeImportant: '仅重要提醒',
   alertNotificationTitleFallback: '公交提醒',
+  // v0.5 线路浏览（任意 TransLoc 线路，仅实时车辆位置）
+  routesNav: '线路',
+  routesSection: '实时线路',
+  routesHeading: '查看任意杜克线路实时位置',
+  routesHint:
+    '显示 TransLoc 发布的全部线路，不限于你保存的通勤线路。仅显示车辆实时位置，不提供到站预测。',
+  routesEmpty: '当前没有可用的实时线路数据。',
+  routesSelectPrompt: '选择一条线路以查看车辆位置。',
+  routesVehiclesNow: '当前 {{count}} 辆车',
+  routesNoVehicles: '该线路当前没有车辆上报位置。',
+  routesStaleCount: '{{count}} 辆车的 GPS 已超过 {{seconds}} 秒，未在地图上显示。',
+  routesStopSequence: '站点顺序',
+  routesRunning: '运营中',
+  routesNotRunning: '未运营',
+  // v0.5 周计划卡片展开
+  collapse: '收起详情',
+  otherDepartures: '其他班次',
+  // v0.5 临时行程
+  oneOffNav: '临时',
+  oneOffSection: '临时行程',
+  oneOffHeading: '规划一次临时行程',
+  oneOffHint: '自选线路和站点，设定需要到达的时间，获得出门提醒。下面的缓冲仅作用于本次行程。',
+  oneOffTitle: '这趟行程是为了什么？',
+  oneOffTitlePlaceholder: '例如：看牙',
+  oneOffLine: '线路',
+  oneOffBoardAt: '上车站',
+  oneOffGetOffAt: '下车站',
+  oneOffArriveBy: '需要到达时间',
+  oneOffBuffer: '本次行程缓冲',
+  oneOffBufferHint: '希望提前多少分钟到达，不会改变你的默认通勤缓冲。',
+  oneOffCreate: '查看推荐',
+  oneOffRemind: '设置出门提醒',
+  oneOffReset: '重置',
+  oneOffNoSelection: '请选择线路、上车站、下车站和到达时间。',
+  oneOffNoDeparture: '该线路没有能在时间前到达该站点的班次。请换线路、换站点或换一个时间。',
+  oneOffReminderSet: '已设置出门提醒。',
+  oneOffReminderFailed: '无法在此设备上设置提醒。',
+  oneOffSaved: '即将到来的临时行程',
+  oneOffSavedEmpty: '没有已保存的临时行程。',
+  oneOffDelete: '删除',
+  oneOffCleared: '行程已删除。',
+  oneOffNotification: '临时行程：{{title}}',
+  oneOffUseDefaults: '从已保存通勤开始',
 };
 
 const translations: Record<AppLanguage, Record<TranslationKey, string>> = { en, 'zh-CN': zh };

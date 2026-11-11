@@ -1,6 +1,18 @@
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  BatteryCharging,
+  Bell,
+  Calendar,
+  Compass,
+  Globe,
+  GraduationCap,
+  MapPin,
+  RefreshCw,
+  Sliders,
+  Smartphone,
+} from 'lucide-react';
 import { buildingBindingKey, classBindingKey } from '../core/calendar/bindings';
 import type { AlertNotificationScope } from '../core/alerts/types';
 import type {
@@ -156,34 +168,45 @@ export function SettingsPanel({
         <p className="eyebrow">{translate(language, 'settings')}</p>
         <h1>{translate(language, 'commuteDefaults')}</h1>
       </div>
-      <label>
-        {translate(language, 'language')}
-        <select
-          value={language}
-          onChange={(event) =>
-            onSettings({ ...settings, language: event.target.value as AppLanguage })
-          }
-        >
-          <option value="en">{translate(language, 'english')}</option>
-          <option value="zh-CN">{translate(language, 'simplifiedChinese')}</option>
-        </select>
-      </label>
+      <section className="settings-subsection">
+        <div className="settings-section-title-row">
+          <Globe size={18} className="settings-section-icon" aria-hidden="true" />
+          <div>
+            <h2>{translate(language, 'language')}</h2>
+          </div>
+        </div>
+        <label>
+          <select
+            value={language}
+            onChange={(event) =>
+              onSettings({ ...settings, language: event.target.value as AppLanguage })
+            }
+          >
+            <option value="en">{translate(language, 'english')}</option>
+            <option value="zh-CN">{translate(language, 'simplifiedChinese')}</option>
+          </select>
+        </label>
+      </section>
+
       <section className="settings-subsection calendar-settings">
-        <div>
-          <p className="eyebrow">{translate(language, 'calendarSection')}</p>
-          <h2>{translate(language, 'courseCalendar')}</h2>
-          <p className="hint">
-            {translate(language, 'calendarLoaded', { count: classes.length })}
-            {calendarRange && (
-              <>
-                {' '}
-                {translate(language, 'calendarRange', {
-                  start: calendarRange.start.toLocaleDateString(localeFor(language)),
-                  end: calendarRange.end.toLocaleDateString(localeFor(language)),
-                })}
-              </>
-            )}
-          </p>
+        <div className="settings-section-title-row">
+          <Calendar size={18} className="settings-section-icon" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">{translate(language, 'calendarSection')}</p>
+            <h2>{translate(language, 'courseCalendar')}</h2>
+            <p className="hint">
+              {translate(language, 'calendarLoaded', { count: classes.length })}
+              {calendarRange && (
+                <>
+                  {' '}
+                  {translate(language, 'calendarRange', {
+                    start: calendarRange.start.toLocaleDateString(localeFor(language)),
+                    end: calendarRange.end.toLocaleDateString(localeFor(language)),
+                  })}
+                </>
+              )}
+            </p>
+          </div>
         </div>
         <ImportClasses
           language={language}
@@ -191,16 +214,20 @@ export function SettingsPanel({
           onImport={onImportClasses}
         />
       </section>
+
       <section className="settings-subsection home-location-section">
-        <div>
-          <p className="eyebrow">{translate(language, 'homeLocation')}</p>
-          <h2>{translate(language, 'commuteStarts')}</h2>
-          {settings.home && (
-            <p className="saved-location" title={settings.home.label}>
-              {settings.home.label ||
-                `${settings.home.lat.toFixed(5)}, ${settings.home.lon.toFixed(5)}`}
-            </p>
-          )}
+        <div className="settings-section-title-row">
+          <MapPin size={18} className="settings-section-icon" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">{translate(language, 'homeLocation')}</p>
+            <h2>{translate(language, 'commuteStarts')}</h2>
+            {settings.home && (
+              <p className="saved-location" title={settings.home.label}>
+                {settings.home.label ||
+                  `${settings.home.lat.toFixed(5)}, ${settings.home.lon.toFixed(5)}`}
+              </p>
+            )}
+          </div>
         </div>
 
         <HomeLocationSearch language={language} onSelect={setHome} />
@@ -213,7 +240,8 @@ export function SettingsPanel({
           type="button"
           onClick={() => void setCurrentPosition()}
         >
-          {translate(language, locating ? 'gettingLocation' : 'useCurrentLocation')}
+          <Compass size={16} className={locating ? 'spin' : ''} aria-hidden="true" />
+          <span>{translate(language, locating ? 'gettingLocation' : 'useCurrentLocation')}</span>
         </button>
         {locationStatus && <p className="location-status">{locationStatus}</p>}
 
@@ -267,10 +295,13 @@ export function SettingsPanel({
       />
 
       <section className="settings-subsection">
-        <div>
-          <p className="eyebrow">{translate(language, 'settingsTransitAlerts')}</p>
-          <h2>{translate(language, 'settingsAlertNotifications')}</h2>
-          <p className="hint">{translate(language, 'settingsAlertNotificationsHint')}</p>
+        <div className="settings-section-title-row">
+          <Bell size={18} className="settings-section-icon" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">{translate(language, 'settingsTransitAlerts')}</p>
+            <h2>{translate(language, 'settingsAlertNotifications')}</h2>
+            <p className="hint">{translate(language, 'settingsAlertNotificationsHint')}</p>
+          </div>
         </div>
         <label>
           {translate(language, 'alertNotificationScope')}
@@ -295,17 +326,20 @@ export function SettingsPanel({
         data-settings-section="class-stops"
         className={`settings-subsection${highlighted ? ' settings-subsection-highlight' : ''}`}
       >
-        <div>
-          <p className="eyebrow">{translate(language, 'classArrivalStops')}</p>
-          <h2>{translate(language, 'whereToGetOff')}</h2>
-          <p className="hint">
-            {translate(
-              language,
-              settings.groupClassStopsByBuilding
-                ? 'eachBuildingConfigured'
-                : 'eachCourseConfigured',
-            )}
-          </p>
+        <div className="settings-section-title-row">
+          <GraduationCap size={18} className="settings-section-icon" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">{translate(language, 'classArrivalStops')}</p>
+            <h2>{translate(language, 'whereToGetOff')}</h2>
+            <p className="hint">
+              {translate(
+                language,
+                settings.groupClassStopsByBuilding
+                  ? 'eachBuildingConfigured'
+                  : 'eachCourseConfigured',
+              )}
+            </p>
+          </div>
         </div>
         <label className="experimental-toggle">
           <span>
@@ -363,59 +397,76 @@ export function SettingsPanel({
         )}
       </section>
 
-      <label>
-        {translate(language, 'defaultBuffer')}
-        <span className="input-with-unit">
-          <input
-            type="number"
-            min="0"
-            max="60"
-            value={settings.defaultBufferMinutes}
-            onChange={(event) =>
-              onSettings({ ...settings, defaultBufferMinutes: Number(event.target.value) })
-            }
-          />
-          {translate(language, 'minutesShort')}
-        </span>
-      </label>
-      <label>
-        {translate(language, 'walkingPace')}
-        <select
-          value={settings.walkingSpeedMetersPerSecond}
-          onChange={(event) =>
-            onSettings({ ...settings, walkingSpeedMetersPerSecond: Number(event.target.value) })
-          }
-        >
-          <option value="1.05">{translate(language, 'relaxed')}</option>
-          <option value="1.3">{translate(language, 'normal')}</option>
-          <option value="1.55">{translate(language, 'brisk')}</option>
-        </select>
-      </label>
-      <div className="settings-row">
-        <div>
-          <span className="eyebrow">{translate(language, 'gtfsSchedule')}</span>
-          <strong>
-            {gtfsUpdatedAt
-              ? translate(language, 'updatedAt', {
-                  date: gtfsUpdatedAt.toLocaleString(localeFor(language)),
-                })
-              : translate(language, 'notDownloaded')}
-          </strong>
+      <section className="settings-subsection">
+        <div className="settings-section-title-row">
+          <Sliders size={18} className="settings-section-icon" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">{translate(language, 'commuteDefaults')}</p>
+            <h2>{translate(language, 'walkingPace')} &amp; {translate(language, 'defaultBuffer')}</h2>
+          </div>
         </div>
-        <button className="secondary-button" disabled={refreshing} onClick={onRefresh}>
-          {translate(language, refreshing ? 'refreshing' : 'refresh')}
-        </button>
-      </div>
-      <div className="settings-row">
-        <span>{translate(language, 'campus')}</span>
-        <strong>{campus.name}</strong>
-      </div>
+        <label>
+          {translate(language, 'defaultBuffer')}
+          <span className="input-with-unit">
+            <input
+              type="number"
+              min="0"
+              max="60"
+              value={settings.defaultBufferMinutes}
+              onChange={(event) =>
+                onSettings({ ...settings, defaultBufferMinutes: Number(event.target.value) })
+              }
+            />
+            {translate(language, 'minutesShort')}
+          </span>
+        </label>
+        <label>
+          {translate(language, 'walkingPace')}
+          <select
+            value={settings.walkingSpeedMetersPerSecond}
+            onChange={(event) =>
+              onSettings({ ...settings, walkingSpeedMetersPerSecond: Number(event.target.value) })
+            }
+          >
+            <option value="1.05">{translate(language, 'relaxed')}</option>
+            <option value="1.3">{translate(language, 'normal')}</option>
+            <option value="1.55">{translate(language, 'brisk')}</option>
+          </select>
+        </label>
+      </section>
+
+      <section className="settings-subsection">
+        <div className="settings-row">
+          <div>
+            <span className="eyebrow">{translate(language, 'gtfsSchedule')}</span>
+            <strong>
+              {gtfsUpdatedAt
+                ? translate(language, 'updatedAt', {
+                    date: gtfsUpdatedAt.toLocaleString(localeFor(language)),
+                  })
+                : translate(language, 'notDownloaded')}
+            </strong>
+          </div>
+          <button className="secondary-button" disabled={refreshing} onClick={onRefresh}>
+            <RefreshCw size={15} className={refreshing ? 'spin' : ''} aria-hidden="true" />
+            <span>{translate(language, refreshing ? 'refreshing' : 'refresh')}</span>
+          </button>
+        </div>
+        <div className="settings-row">
+          <span>{translate(language, 'campus')}</span>
+          <strong>{campus.name}</strong>
+        </div>
+      </section>
+
       {isAndroid && (
         <section className="settings-subsection android-tools">
-          <div>
-            <p className="eyebrow">{translate(language, 'androidTools')}</p>
-            <h2>{translate(language, 'homeScreenWidgets')}</h2>
-            <p className="hint">{translate(language, 'widgetsHint')}</p>
+          <div className="settings-section-title-row">
+            <Smartphone size={18} className="settings-section-icon" aria-hidden="true" />
+            <div>
+              <p className="eyebrow">{translate(language, 'androidTools')}</p>
+              <h2>{translate(language, 'homeScreenWidgets')}</h2>
+              <p className="hint">{translate(language, 'widgetsHint')}</p>
+            </div>
           </div>
           <div className="battery-settings">
             <strong>{translate(language, 'batteryOptimization')}</strong>
@@ -435,7 +486,8 @@ export function SettingsPanel({
               type="button"
               onClick={() => void openBatteryOptimizationSettings()}
             >
-              {translate(language, 'openBatterySettings')}
+              <BatteryCharging size={16} aria-hidden="true" />
+              <span>{translate(language, 'openBatterySettings')}</span>
             </button>
           </div>
         </section>

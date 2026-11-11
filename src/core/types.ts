@@ -213,6 +213,11 @@ export interface CommutePlan {
   classEvent: ClassEvent;
   status: CommutePlanStatus;
   recommendation?: CommuteRecommendation;
+  /**
+   * Other departures found for the same class, newest first. They are informational:
+   * some may arrive after the bell, so callers must label them with `arrivalStatus`.
+   */
+  alternatives?: CommuteRecommendation[];
 }
 
 export interface RoutingOptions {
@@ -240,6 +245,22 @@ export interface HomeTransitDraft {
   routeId?: string;
   routeFamilyId?: string;
   originStopId?: string;
+}
+
+export interface OneOffTrip {
+  /** Always prefixed with `oneoff:` so its notification id cannot collide with a class. */
+  id: string;
+  title: string;
+  /** The time the user needs to be there, without any buffer applied. */
+  arrivalDeadline: Date;
+  routeId: string;
+  /** Set when the user picked a route family; the raw `routeId` remains the canonical entry. */
+  routeFamilyId?: string;
+  originStopId: string;
+  destinationStopId: string;
+  /** Buffer for this trip only. It never changes the global `defaultBufferMinutes`. */
+  bufferMinutes: number;
+  createdAt: Date;
 }
 
 export interface UserSettings {

@@ -17,7 +17,18 @@ android/local.properties
 *.jks
 *.keystore
 
+# Tool caches redirected into the workspace (see .npmrc, gradlew -g) so the
+# sandboxed sessions can write them without touching %USERPROFILE%.
+.npm-cache/
+.gradle-home/
+
 # Ephemeral public-API research captures. Keep only the directory marker in Git.
 research/transloc/samples/*
 !research/transloc/samples/.gitkeep
 research/transloc/tmp/
+
+# Local tools & editor caches
+sync.ffs_db
+*.ffs_db
+.workbuddy/
+design/

@@ -162,3 +162,107 @@ describe('buildWeekPlans arrival-stop status', () => {
     expect(plans[0]).toMatchObject({ status: 'no-matching-departure' });
   });
 });
+
+// The expandable week card lists the other departures it found, newest first. They are
+// informational only: a later one can arrive after the bell, so the UI labels it.
+// The engine evaluates the buffered deadline day and the day before it, so each trip here
+// produces one candidate per service date; the assertions below only care about the
+// ordering and the fact that the recommendation is not repeated among the alternatives.
+const multiTripFeed: GtfsFeed = {
+  ...loopFeed,
+  trips: [
+    { id: 'early', routeId: 'TL-13', serviceId: 'weekday' },
+    { id: 'late', routeId: 'TL-13', serviceId: 'weekday' },
+  ],
+  stopTimes: [
+    {
+      tripId: 'early',
+      stopId: 'TL-195',
+      arrivalSeconds: 32_000,
+      departureSeconds: 32_000,
+      stopSequence: 1,
+    },
+    {
+      tripId: 'early',
+      stopId: 'TL-200',
+      arrivalSeconds: 32_400,
+      departureSeconds: 32_400,
+      stopSequence: 2,
+    },
+    {
+      tripId: 'late',
+      stopId: 'TL-195',
+      arrivalSeconds: 33_900,
+      departureSeconds: 33_900,
+      stopSequence: 1,
+    },
+    {
+      tripId: 'late',
+      stopId: 'TL-200',
+      arrivalSeconds: 34_500,
+      departureSeconds: 34_500,
+      stopSequence: 2,
+    },
+  ],
+};
+
+const singleTripFeed: GtfsFeed = {
+  ...loopFeed,
+  trips: [{ id: 'early', routeId: 'TL-13', serviceId: 'weekday' }],
+  stopTimes: multiTripFeed.stopTimes.filter((time) => time.tripId === 'early'),
+};
+
+describe('buildWeekPlans other departures', () => {
+  const settings: UserSettings = {
+    ...baseSettings,
+    classStopBindings: { [classBindingKey(fridayClass)]: 'TL-200' },
+  };
+
+  it('keeps the other departures for the same class behind the recommendation', () => {
+    const plans = buildWeekPlans({
+      events: [fridayClass],
+      feed: multiTripFeed,
+      settings,
+      buildings: [],
+      serviceTimezone: 'America/New_York',
+      now: new Date('2026-09-23T12:00:00Z'),
+      resolveTransitSelections: (selection) => [selection],
+    });
+    const plan = plans[0]!;
+    expect(plan.status).toBe('ready');
+    // Capped at two so the card stays a summary; the full list is not the week view's job.
+    expect(plan.alternatives!.length).toBeGreaterThan(0);
+    expect(plan.alternatives!.length).toBeLessThanOrEqual(2);
+    // The recommendation is the latest safe departure, so every alternative leaves earlier.
+    for (const alternative of plan.alternatives!) {
+      expect(alternative.leaveAt.getTime()).toBeLessThanOrEqual(
+        plan.recommendation!.leaveAt.getTime(),
+      );
+    }
+    // The recommendation itself is never repeated in the alternatives list.
+    const recommendedDeparture = plan.recommendation!.departureTime.toISOString();
+    expect(plan.alternatives!.map((entry) => entry.departureTime.toISOString())).not.toContain(
+      recommendedDeparture,
+    );
+  });
+
+  it('leaves alternatives empty when only one departure exists', () => {
+    const plans = buildWeekPlans({
+      events: [fridayClass],
+      feed: singleTripFeed,
+      settings,
+      buildings: [],
+      serviceTimezone: 'America/New_York',
+      now: new Date('2026-09-23T12:00:00Z'),
+      resolveTransitSelections: (selection) => [selection],
+    });
+    expect(plans[0]!.status).toBe('ready');
+    expect(plans[0]!.alternatives).toEqual([]);
+  });
+
+  it('does not invent alternatives for a plan with no recommendation', () => {
+    const plan = planFor(fridayClass, baseSettings)!;
+    expect(plan.status).toBe('arrival-stop-missing');
+    expect(plan.alternatives).toBeUndefined();
+  });
+});

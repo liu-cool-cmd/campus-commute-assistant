@@ -1,3 +1,4 @@
+import { BusFront } from 'lucide-react';
 import {
   DUKE_LL_FAMILY_ID,
   DUKE_LLCCW_FAMILY_ID,
@@ -71,10 +72,13 @@ export function HomeTransitSettings({
 
   return (
     <section className="settings-subsection">
-      <div>
-        <p className="eyebrow">{translate(language, 'homeTransit')}</p>
-        <h2>{translate(language, 'defaultLineStop')}</h2>
-        <p className="hint">{translate(language, 'homeTransitHint')}</p>
+      <div className="settings-section-title-row">
+        <BusFront size={18} className="settings-section-icon" aria-hidden="true" />
+        <div>
+          <p className="eyebrow">{translate(language, 'homeTransit')}</p>
+          <h2>{translate(language, 'defaultLineStop')}</h2>
+          <p className="hint">{translate(language, 'homeTransitHint')}</p>
+        </div>
       </div>
       <label>
         {translate(language, 'lineFromHome')}

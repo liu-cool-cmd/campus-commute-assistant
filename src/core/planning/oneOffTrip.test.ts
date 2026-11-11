@@ -62,10 +62,11 @@ describe('one-off trip buffer', () => {
   });
 
   it('pulls the effective deadline earlier by exactly the buffer', () => {
-    const deadline = new Date('2026-10-05T10:00:00-04:00');
+    const deadline = new Date('2026-10-05T10:00:00Z');
     const effective = new Date(deadline.getTime() - 15 * 60_000);
-    expect(effective.getHours()).toBe(9);
-    expect(effective.getMinutes()).toBe(45);
+    expect(deadline.getTime() - effective.getTime()).toBe(15 * 60_000);
+    expect(effective.getUTCHours()).toBe(9);
+    expect(effective.getUTCMinutes()).toBe(45);
   });
 });
 

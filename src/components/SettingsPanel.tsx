@@ -402,7 +402,9 @@ export function SettingsPanel({
           <Sliders size={18} className="settings-section-icon" aria-hidden="true" />
           <div>
             <p className="eyebrow">{translate(language, 'commuteDefaults')}</p>
-            <h2>{translate(language, 'walkingPace')} &amp; {translate(language, 'defaultBuffer')}</h2>
+            <h2>
+              {translate(language, 'walkingPace')} &amp; {translate(language, 'defaultBuffer')}
+            </h2>
           </div>
         </div>
         <label>

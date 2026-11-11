@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  Bell,
-  Clock,
-  PlusCircle,
-  RotateCcw,
-  Trash2,
-} from 'lucide-react';
+import { AlertCircle, Bell, Clock, PlusCircle, RotateCcw, Trash2 } from 'lucide-react';
 import {
   getFamilyStopDefinitions,
   mapFamilyStopToVariant,
@@ -379,7 +372,11 @@ export function OneOffTripPanel({
                 >
                   <strong>{trip.title}</strong>
                   <span>
-                    <Clock size={12} aria-hidden="true" style={{ display: 'inline', marginRight: 4, verticalAlign: -1 }} />
+                    <Clock
+                      size={12}
+                      aria-hidden="true"
+                      style={{ display: 'inline', marginRight: 4, verticalAlign: -1 }}
+                    />
                     {new Intl.DateTimeFormat(localeFor(language), {
                       month: 'short',
                       day: 'numeric',

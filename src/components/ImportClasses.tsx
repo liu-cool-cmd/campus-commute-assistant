@@ -50,7 +50,9 @@ export function ImportClasses({ language, mode = 'import', onImport }: ImportCla
       />
       <button className="primary-button" onClick={() => input.current?.click()}>
         <UploadCloud size={16} aria-hidden="true" />
-        <span>{translate(language, mode === 'replace' ? 'replaceCalendar' : 'importCalendar')}</span>
+        <span>
+          {translate(language, mode === 'replace' ? 'replaceCalendar' : 'importCalendar')}
+        </span>
       </button>
       <p>{translate(language, mode === 'replace' ? 'replaceCalendarHint' : 'importHint')}</p>
       {success && <p className="success-text">{success}</p>}
